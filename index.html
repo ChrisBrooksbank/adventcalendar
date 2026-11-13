@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Advent House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+  :root { --gold: #ffe2a0; --ink: #060b24; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); color: #fff; font-family: "Cormorant Garamond", Georgia, serif; }
+  #stage, #stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .ui { position: fixed; z-index: 3; pointer-events: none; transition: opacity .8s ease, transform .8s ease; }
+  header { top: 0; left: 0; right: 0; text-align: center; padding: clamp(10px, 2.2vh, 26px) 16px 0; text-shadow: 0 2px 18px rgba(0, 10, 40, .9); }
+  header h1 { margin: 0; font: 700 clamp(30px, 5.2vh, 60px)/1 "Mountains of Christmas", Georgia, serif; color: var(--gold); letter-spacing: .02em; text-shadow: 0 0 24px rgba(255, 190, 80, .55), 0 2px 12px rgba(0, 0, 30, .9); }
+  #status { margin-top: 6px; font-size: clamp(15px, 2.2vh, 21px); font-style: italic; color: #dfe8ff; font-variant-numeric: tabular-nums; }
+  body.focus header, body.focus #toast { opacity: 0; transform: translateY(-14px); }
+  #toast { left: 50%; bottom: clamp(18px, 6vh, 60px); transform: translate(-50%, 12px); max-width: min(92vw, 620px); padding: 12px 22px; border-radius: 999px; text-align: center;
+    background: rgba(8, 14, 44, .72); border: 1px solid rgba(255, 226, 160, .45); backdrop-filter: blur(8px); font-size: clamp(16px, 2.3vh, 21px); color: #fff6dc; opacity: 0; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #sound { top: 14px; right: 14px; pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 226, 160, .5); background: rgba(8, 14, 44, .55); color: var(--gold); font-size: 20px; cursor: pointer; }
+  #sound.off { opacity: .45; text-decoration: line-through; }
+  #cap { left: 0; right: 0; bottom: 0; padding: 40px clamp(16px, 5vw, 60px) clamp(18px, 4vh, 40px); text-align: center; opacity: 0; transform: translateY(20px);
+    background: linear-gradient(to top, rgba(4, 7, 26, .88), rgba(4, 7, 26, .55) 60%, transparent); }
+  body.day #cap { opacity: 1; transform: none; transition-delay: 1.2s; }
+  #cap .n { font: 700 clamp(15px, 2vh, 19px) "Cormorant Garamond", serif; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+  #cap h2 { margin: 2px 0 6px; font: 700 clamp(30px, 5.5vh, 58px)/1.05 "Mountains of Christmas", Georgia, serif; color: var(--gold); text-shadow: 0 0 22px rgba(255, 190, 80, .5); text-wrap: balance; }
+  #cap p { margin: 0 auto; max-width: 46ch; font-size: clamp(17px, 2.5vh, 23px); line-height: 1.35; color: #f1f4ff; text-wrap: pretty; }
+  #tune { margin-top: 8px; font-style: italic; color: #b9c8f5; font-size: clamp(14px, 1.9vh, 17px); }
+  #back { pointer-events: none; margin-top: 14px; padding: 9px 22px; border-radius: 999px; border: 1px solid rgba(255, 226, 160, .6); background: rgba(255, 226, 160, .12); color: var(--gold); font: 500 17px "Cormorant Garamond", serif; cursor: pointer; }
+  body.day #back { pointer-events: auto; }
+  #back:hover, #sound:hover { background: rgba(255, 226, 160, .28); }
+  #back:focus-visible, #sound:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  #fade { position: fixed; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .8s ease; background: radial-gradient(circle, #fffbe8 0%, #ffe2a0 45%, #f3b24a 100%); }
+  #fade.on { opacity: 1; }
+  #veil { position: fixed; inset: 0; z-index: 5; background: var(--ink); display: grid; place-items: center; transition: opacity 1.6s ease; font: 700 34px "Mountains of Christmas", Georgia, serif; color: var(--gold); }
+  body.ready #veil { opacity: 0; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .ui, #fade, #veil { transition-duration: .01s; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="fade"></div>
+<header class="ui"><h1>The Advent House</h1><div id="status"></div></header>
+<button id="sound" class="ui" title="Sound on / off" aria-label="Toggle sound">♪</button>
+<div id="toast" class="ui" role="status"></div>
+<div id="cap" class="ui">
+  <div class="n">Door <span id="num"></span></div>
+  <h2 id="title"></h2>
+  <p id="text"></p>
+  <div id="tune"></div>
+  <button id="back">← Back to the Advent House</button>
+</div>
+<div id="veil">✦</div>
+<script>
+  if (location.search.includes('selftest')) { window.__errs = []; addEventListener('error', (e) => __errs.push(e.message + ' ' + (e.filename || '') + ':' + e.lineno)); addEventListener('unhandledrejection', (e) => __errs.push('rejection: ' + ((e.reason && e.reason.stack) || e.reason))); }
+</script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

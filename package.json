@@ -1,0 +1,7 @@
+{
+  "name": "advent-house",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A magical three.js advent calendar",
+  "scripts": { "start": "node server.js" }
+}
