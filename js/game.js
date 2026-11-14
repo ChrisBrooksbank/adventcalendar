@@ -46,9 +46,6 @@ function houseGeo(s, wall) {
   wins.push([box(w * 0.14, rh * 0.25, 0.06), 0xffffff, 0, h + rh * 0.35, d / 2 + 0.3]);
   return { body, wins: merge(wins), chim: new THREE.Vector3(cx, h + rh * 1.12, cz) };
 }
-function pineGeo() {
-  return pineGeometry();
-}
 function groundTex() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 50; i++) {
@@ -134,9 +131,9 @@ export function createGame({ dom, audio, seed = 'tonight', onExit, setPR, getPR,
     g.scale.setScalar(1.1); return g;
   });
   const lakePool = pool(2, () => new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), M(0x2a4a8a, { r: 0.12, m: 0.25, e: 0x0c1e4a, ei: 0.7 })));
-  const NT = 440, NM = 110, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
-  const trees = new THREE.InstancedMesh(pineGeo(), bodyMat, NT), mounds = new THREE.InstancedMesh(sph(1, 14, 8), M(0xcad6f2, { r: 0.95 }), NM);
-  trees.frustumCulled = mounds.frustumCulled = false; world.add(trees, mounds);
+  const NT = 150, NM = 110, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+  const trees = [0, 1, 2].map((k) => new THREE.InstancedMesh(pineGeometry(true, k), bodyMat, NT)), mounds = new THREE.InstancedMesh(sph(1, 14, 8), M(0xcad6f2, { r: 0.95 }), NM);
+  mounds.frustumCulled = false; world.add(mounds); trees.forEach((t) => { t.frustumCulled = false; world.add(t); });
   let ti = 0, mi = 0;
 
   // ---------- state ----------
@@ -160,7 +157,7 @@ export function createGame({ dom, audio, seed = 'tonight', onExit, setPR, getPR,
   function freeHouse(h) { h.on = false; h.g.visible = false; h.ring.material = ringMat; if (prevLocked === h) prevLocked = null; }
   function tree(x, wz, h) {
     if (blocked(x, wz, h * 0.28)) return; const w = h * (0.85 + Math.random() * 0.3);
-    trees.setMatrixAt(ti, _m4.compose(_v.set(x, -0.1, -wz), _q.setFromAxisAngle(UP, Math.random() * TAU), _s.set(w, h, w))); ti = (ti + 1) % NT; trees.instanceMatrix.needsUpdate = true;
+    const tm = trees[ti % 3]; tm.setMatrixAt(Math.floor(ti / 3), _m4.compose(_v.set(x, -0.1, -wz), _q.setFromAxisAngle(UP, Math.random() * TAU), _s.set(w, h, w))); ti = (ti + 1) % (NT * 3); tm.instanceMatrix.needsUpdate = true;
     if (Math.abs(x) < 12.5 && h * 1.075 > Y_LO - 0.5) obstacles.push({ kind: 'tree', x, wz, h, top: h * 1.075 - 0.3 });
   }
   function mound(x, wz, r) {
@@ -242,7 +239,7 @@ export function createGame({ dom, audio, seed = 'tonight', onExit, setPR, getPR,
   }
   function reset() {
     houses.forEach((h) => h.on && freeHouse(h)); ents.forEach((e) => e.pool.put(e.o)); ents.length = obstacles.length = 0;
-    for (let i = 0; i < NT; i++) trees.setMatrixAt(i, ZERO); for (let i = 0; i < NM; i++) mounds.setMatrixAt(i, ZERO); trees.instanceMatrix.needsUpdate = mounds.instanceMatrix.needsUpdate = true;
+    for (const t of trees) { for (let i = 0; i < NT; i++) t.setMatrixAt(i, ZERO); t.instanceMatrix.needsUpdate = true; } for (let i = 0; i < NM; i++) mounds.setMatrixAt(i, ZERO); mounds.instanceMatrix.needsUpdate = true;
     presents.forEach((p) => { p.on = false; p.o.visible = false; }); fx.life.fill(0);
     R = mulberry(seedN); genZ = 62; chunkI = 0; lastChunk = ''; ti = mi = 0;
     T = tPlay = dist = prevDist = boost = hurt = shake = slowmo = flare = cool = introT = endT = 0; v = 17; slow = 1; spin = 1;

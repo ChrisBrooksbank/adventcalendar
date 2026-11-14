@@ -224,65 +224,55 @@ export function snowGround(R = 110, bump = 0.6, color = 0xc2d0ee, flat = 9) {
   geo.computeVertexNormals(); return mesh(geo, M(color, { r: 0.95 }));
 }
 export const groundY = (x, z, bump = 0.6, flat = 9) => hillH(x, z) * smooth(flat, flat + 26, Math.hypot(x, z)) * bump;
+const PINE_KINDS = 6, _pines = {}; let _pineMat;
 export function pine(h = 3, snowy = true) {
-  const g = new THREE.Group();
-  const material = M(0xffffff, { r: 0.94 }); material.vertexColors = true;
-  const tree = mesh(pineGeometry(snowy), material, 0, 0, 0, g);
-  tree.scale.set(h * rnd(0.9, 1.08), h, h * rnd(0.9, 1.08));
-  tree.rotation.y = rnd(TAU);
+  const g = new THREE.Group(); _pineMat ??= Object.assign(M(0xffffff, { r: 0.92 }), { vertexColors: true });
+  const tree = mesh(pineGeometry(snowy, Math.floor(rnd(PINE_KINDS))), _pineMat, 0, 0, 0, g), w = h * rnd(0.88, 1.12);
+  tree.scale.set(w, h, w); tree.rotation.y = rnd(TAU);
   return g;
 }
-// Bake the boughs into one mesh so a detailed forest still needs one draw per tree.
-// The same unit geometry is used by the delivery game's instanced trees.
-export function pineGeometry(snowy = true) {
-  const positions = [], normals = [], colors = [], transform = new THREE.Object3D();
-  const tint = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
-  const foliage = new THREE.Color(0x205a42).offsetHSL(rnd(-0.018, 0.018), 0, rnd(-0.025, 0.025));
-  function add(geo, color, x, y, z, sx = 1, sy = 1, sz = 1, direction) {
-    transform.position.set(x, y, z); transform.scale.set(sx, sy, sz);
-    transform.quaternion.identity();
-    if (direction) transform.quaternion.setFromUnitVectors(up, direction.clone().normalize());
-    transform.updateMatrix();
-    const baked = geo.index ? geo.toNonIndexed() : geo;
-    baked.applyMatrix4(transform.matrix); tint.set(color);
-    positions.push(...baked.attributes.position.array); normals.push(...baked.attributes.normal.array);
-    for (let i = 0; i < baked.attributes.position.count; i++) colors.push(tint.r, tint.g, tint.b);
-    baked.dispose(); if (baked !== geo) geo.dispose();
+// A unit-height fir (top at about 1.07) built from tiers of drooping boughs: each tier is a faceted skirt whose rim
+// alternates between long, sagging bough tips and tucked-in gaps, with a ragged blanket of snow lying on top.
+// About 500 triangles in one vertex-coloured mesh; a handful of variants are built once and shared by every tree
+// (including the delivery game's instanced forests), so a whole wood is cheap to build and to draw.
+export function pineGeometry(snowy = true, kind = 0) {
+  const key = (snowy ? 's' : 'g') + (kind % PINE_KINDS); if (_pines[key]) return _pines[key];
+  const P = [], C = [], a = new THREE.Vector3(), b = new THREE.Vector3(), n = new THREE.Vector3();
+  // one flat triangle from [x, y, z, colour] corners, wound so that it faces up (or down)
+  function tri(p, q, r, up = true) {
+    n.crossVectors(a.set(q[0] - p[0], q[1] - p[1], q[2] - p[2]), b.set(r[0] - p[0], r[1] - p[1], r[2] - p[2]));
+    for (const v of (n.y > 0) === up ? [p, q, r] : [p, r, q]) { P.push(v[0], v[1], v[2]); C.push(v[3].r, v[3].g, v[3].b); }
   }
-  const leanX = rnd(-0.025, 0.025), leanZ = rnd(-0.025, 0.025), phase = rnd(TAU);
-  add(cyl(0.009, 0.038, 0.96, 9), 0x634735, leanX / 2, 0.48, leanZ / 2);
-  for (let tier = 0; tier < 9; tier++) {
-    const t = tier / 9, y = 0.19 + t * 0.79, radius = 0.34 * Math.pow(1 - t, 0.9);
-    const count = tier < 5 ? 7 : 5;
-    // Staggered whorls, open gaps and drooping tips break up the cone silhouette.
-    for (let j = 0; j < count; j++) {
-      const angle = phase + j * TAU / count + tier * 2.399 + rnd(-0.16, 0.16);
-      const length = radius * rnd(0.78, 1.15), dx = Math.cos(angle), dz = Math.sin(angle);
-      const by = y + rnd(-0.018, 0.018), drop = length * rnd(0.12, 0.25);
-      const direction = new THREE.Vector3(dx * length, -drop, dz * length);
-      add(cyl(0.002, 0.008 * (1 - t) + 0.002, direction.length(), 5), 0x614735,
-        leanX * t + dx * length / 2, by - drop / 2, leanZ * t + dz * length / 2, 1, 1, 1, direction);
-      for (let k = 0; k < 3; k++) {
-        const f = 0.28 + k * 0.27, x = leanX * t + dx * length * f, z = leanZ * t + dz * length * f;
-        const py = by - drop * f, width = length * (0.28 - k * 0.055);
-        const green = foliage.clone().offsetHSL(0, rnd(-0.05, 0.05), rnd(-0.035, 0.045));
-        add(cone(1, 1, 7), green, x, py + width * 0.55, z,
-          width, width * rnd(1.8, 2.5), width, new THREE.Vector3(dx * 0.3, 1, dz * 0.3));
-        if (snowy && (k < 2 || Math.random() < 0.6)) {
-          add(sph(1, 7, 4), pick([0xf4f8ff, 0xdce8f5, 0xeaf3fc]),
-            x, py + width * 1.1, z, width * 0.85, width * rnd(0.18, 0.32), width * 0.76);
-        }
-      }
+  const shade = (c, l, s = 0) => c.clone().offsetHSL(0, s, l);
+  const green = new THREE.Color(0x1f5c42).offsetHSL(rnd(-0.02, 0.02), rnd(-0.04, 0.04), rnd(-0.02, 0.02));
+  const tip = shade(green, 0.07, 0.04), deep = shade(green, -0.06), under = shade(green, -0.11), bark = new THREE.Color(0x5a3d2a);
+  const white = new THREE.Color(0xf6f9ff), drift = new THREE.Color(0xd3e0f6), lx = rnd(-0.03, 0.03), lz = rnd(-0.03, 0.03), TIERS = 7;
+  for (let i = 0; i < 6; i++) { // trunk
+    const a0 = (i / 6) * TAU, a1 = ((i + 1) / 6) * TAU, q = (ang, y, r) => [Math.cos(ang) * r + lx * y, y, Math.sin(ang) * r + lz * y, bark];
+    const v = [q(a0, 0, 0.05), q(a1, 0, 0.05), q(a1, 0.5, 0.022), q(a0, 0.5, 0.022)]; n.set(Math.cos((a0 + a1) / 2), 0, Math.sin((a0 + a1) / 2));
+    for (const [p, q2, r] of [[v[0], v[1], v[2]], [v[0], v[2], v[3]]]) { // wound to face outwards
+      const out = a.set(q2[0] - p[0], q2[1] - p[1], q2[2] - p[2]).cross(b.set(r[0] - p[0], r[1] - p[1], r[2] - p[2])).dot(n) > 0;
+      for (const c of out ? [p, q2, r] : [p, r, q2]) { P.push(c[0], c[1], c[2]); C.push(bark.r, bark.g, bark.b); }
     }
   }
-  add(cone(0.052, 0.23, 9), foliage, leanX, 0.96, leanZ);
-  if (snowy) add(cone(0.025, 0.11, 7), 0xf4f8ff, leanX, 1.015, leanZ);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeBoundingSphere();
-  return geometry;
+  for (let i = 0; i < TIERS; i++) {
+    const t = i / (TIERS - 1), y0 = 0.13 + 0.118 * i, R = 0.35 * Math.pow(1 - t, 0.9) + 0.055, H = 0.3 - 0.07 * t;
+    const N = Math.round(lerp(10, 6, t)), twist = rnd(TAU), cx = lx * y0, cz = lz * y0, top = [cx + lx * H, y0 + H, cz + lz * H, deep], rim = [], snow = [];
+    for (let k = 0; k < N * 2; k++) {
+      const bough = k % 2 === 0, ang = twist + (k * Math.PI) / N + rnd(-0.1, 0.1), r = R * (bough ? rnd(0.9, 1.14) : rnd(0.52, 0.66));
+      const p = [cx + Math.cos(ang) * r, y0 + (bough ? -R * rnd(0.1, 0.24) : 0.025), cz + Math.sin(ang) * r, bough ? tip : deep]; rim.push(p);
+      // snow lies thick near the trunk and thins out along each bough; a few boughs are laden right to the tip
+      const f = bough ? (Math.random() < 0.35 ? 1 : rnd(0.55, 0.9)) : rnd(0.56, 0.78);
+      snow.push([lerp(top[0], p[0], f), lerp(top[1], p[1], f) + 0.013, lerp(top[2], p[2], f), f > 0.7 ? drift : white]);
+    }
+    const base = [cx, y0 + 0.03, cz, under], cap = [top[0], top[1] + 0.02, top[2], white];
+    for (let k = 0; k < N * 2; k++) {
+      const k2 = (k + 1) % (N * 2); tri(top, rim[k], rim[k2]); tri(base, rim[k], rim[k2], false);
+      if (snowy) tri(cap, snow[k], snow[k2]);
+    }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  geo.computeVertexNormals(); geo.computeBoundingSphere(); return (_pines[key] = geo);
 }
 export function forest(parent, n, r0, r1, bump = 0.6, keep = (x, z) => !(z > 2 && Math.abs(x) < z * 0.75 + 3)) {
   for (let i = 0; i < n; i++) {
