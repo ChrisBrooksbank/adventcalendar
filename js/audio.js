@@ -46,6 +46,19 @@ const TUNES = [
   ['Silent Night', 65, 0.46, '7:1.5 9:.5 7:1 4:3 7:1.5 9:.5 7:1 4:3 14:2 14:1 11:3 12:2 12:1 7:3'],
 ];
 export const tuneName = (n) => TUNES[n - 1][0];
+const MELODY = TUNES.map(([, base, , seq]) => seq.split(' ').map((s) => base + +s.split(':')[0]));
+// ---------- noise-based effects (wind, whooshes, soft snow) for Midnight Delivery ----------
+let noiseBuf, windG, windF;
+function noise() {
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s;
+}
+function puff(type, f0, f1, q, len, vol) {
+  const t = ctx.currentTime, s = noise(), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = type; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + len);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + len * 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + len + 0.05);
+}
 export const audio = {
   get on() { return enabled; },
   toggle() { enabled = !enabled; if (master) master.gain.value = enabled ? 0.5 : 0; return enabled; },
@@ -61,5 +74,26 @@ export const audio = {
     if (!enabled || !init()) return; const sc = [0, 2, 4, 7, 9];
     for (let i = 0; i < 16; i++) note(67 + (n % 5) + sc[i % 5] + 12 * Math.floor(i / 5), i * 0.11 + Math.random() * 0.02, 1.3, 0.07 + i * 0.004);
   },
+  // --- Midnight Delivery ---
+  tuneLen: (n) => MELODY[n - 1].length,
+  tuneNote(n, i, bright) { // one note of a carol per present delivered
+    if (!enabled || !init()) return; const m = MELODY[n - 1][i % MELODY[n - 1].length]; note(m, 0, 1.5, 0.24); note(m - 12, 0, 1.2, 0.07); if (bright) note(m + 12, 0.03, 1.1, 0.08);
+  },
+  wind(level) { // continuous rush of air; level 0 silences it
+    if (!init()) return; const t = ctx.currentTime;
+    if (!windG) { const s = noise(); windF = ctx.createBiquadFilter(); windF.type = 'bandpass'; windF.Q.value = 0.6; windG = ctx.createGain(); windG.gain.value = 0; s.connect(windF); windF.connect(windG); windG.connect(master); s.start(); }
+    windG.gain.setTargetAtTime(enabled ? level * 0.085 : 0, t, 0.25); windF.frequency.setTargetAtTime(260 + level * 700, t, 0.25);
+  },
+  jingle(v = 0.02) { if (!enabled || !init()) return; note(98, 0, 0.16, v); note(105, 0.012, 0.12, v * 0.8); },
+  pff() { if (!enabled || !init()) return; puff('lowpass', 900, 220, 0.5, 0.3, 0.2); },
+  whoosh() { if (!enabled || !init()) return; puff('bandpass', 350, 2800, 1.4, 0.7, 0.3); [0, 4, 7, 12].forEach((s, i) => note(79 + s, i * 0.05, 0.9, 0.06)); },
+  thud() {
+    if (!enabled || !init()) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.28); g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.35); puff('lowpass', 1400, 300, 0.5, 0.35, 0.25);
+    for (let i = 0; i < 5; i++) note(96 + ((i * 5) % 9), i * 0.045 + Math.random() * 0.02, 0.2, 0.035);
+  },
+  twinkle(i = 0) { if (!enabled || !init()) return; const sc = [0, 2, 4, 7, 9, 12, 14, 16]; note(86 + sc[Math.abs(i) % sc.length], 0, 0.5, 0.06); },
+  fanfare() { if (!enabled || !init()) return; [0, 4, 7, 12, 16, 19, 24].forEach((s, i) => note(72 + s, 0.25 + i * 0.09, 1.6, 0.11)); },
   bells() { if (!enabled || !init()) return; for (let i = 0; i < 6; i++) { note(96, i * 0.16, 0.25, 0.05); note(103, i * 0.16 + 0.02, 0.2, 0.04); } },
 };

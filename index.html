@@ -37,6 +37,46 @@
   #fade.on { opacity: 1; }
   #veil { position: fixed; inset: 0; z-index: 5; background: var(--ink); display: grid; place-items: center; transition: opacity 1.6s ease; font: 700 34px "Mountains of Christmas", Georgia, serif; color: var(--gold); }
   body.ready #veil { opacity: 0; pointer-events: none; }
+  #stage canvas { touch-action: none; }
+  /* ---------- Midnight Delivery ---------- */
+  .pill { pointer-events: auto; padding: 9px 22px; border-radius: 999px; border: 1px solid rgba(255, 226, 160, .6); background: rgba(8, 14, 44, .6); color: var(--gold); font: 500 clamp(16px, 2.2vh, 20px) "Cormorant Garamond", serif; cursor: pointer; backdrop-filter: blur(6px); }
+  .pill:hover, #g-quit:hover { background: rgba(255, 226, 160, .28); }
+  .pill:focus-visible, #g-quit:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  #play { margin-top: 10px; animation: glow 3.2s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: 0 0 22px rgba(255, 200, 100, .55); } }
+  body.focus #play { pointer-events: none; }
+  #mist { position: fixed; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .42s ease; background: radial-gradient(circle at 50% 40%, #eef3ff 0%, #a9bdf0 55%, #6f88cf 100%); }
+  #mist.on { opacity: 1; }
+  #hud { inset: 0; opacity: 0; text-align: center; text-shadow: 0 2px 14px rgba(0, 10, 40, .9); }
+  body.game #hud { opacity: 1; }
+  body.game.over #g-top, body.game.over #g-quit { opacity: 0; }
+  #g-top { position: absolute; top: clamp(8px, 1.6vh, 18px); left: 50%; transform: translateX(-50%); width: min(70vw, 360px); transition: opacity .6s; }
+  #g-score { font: 700 clamp(34px, 6vh, 60px)/1 "Mountains of Christmas", Georgia, serif; color: var(--gold); font-variant-numeric: tabular-nums; text-shadow: 0 0 22px rgba(255, 190, 80, .5), 0 2px 12px rgba(0, 0, 30, .9); }
+  #g-combo { position: absolute; left: 100%; top: 6px; margin-left: -6px; min-width: 2.2em; text-align: left; font: 700 clamp(22px, 3.6vh, 34px)/1 "Mountains of Christmas", Georgia, serif; color: #ff9a8a; }
+  #g-magic { height: 9px; margin: 8px auto 0; border-radius: 9px; background: rgba(8, 14, 44, .6); border: 1px solid rgba(255, 226, 160, .45); overflow: hidden; }
+  #g-bar { display: block; height: 100%; transform-origin: 0 50%; background: linear-gradient(90deg, #ff9a50, #ffe2a0 55%, #9fffe0); will-change: transform; }
+  #g-magic.low { animation: low .5s ease-in-out infinite; }
+  @keyframes low { 50% { border-color: #ff6a5a; box-shadow: 0 0 14px rgba(255, 90, 70, .8); } }
+  #g-tune { margin-top: 5px; font-style: italic; color: #cfdaff; font-size: clamp(13px, 1.8vh, 17px); white-space: nowrap; }
+  #g-quit { position: absolute; top: 14px; left: 14px; pointer-events: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 226, 160, .5); background: rgba(8, 14, 44, .55); color: var(--gold); font-size: 20px; cursor: pointer; transition: opacity .6s; }
+  body.game #g-quit { pointer-events: auto; }
+  #g-msg { position: absolute; top: 24%; left: 50%; width: min(92vw, 640px); transform: translate(-50%, 0); opacity: 0; font: 700 clamp(22px, 4vh, 40px)/1.15 "Mountains of Christmas", Georgia, serif; color: #fff6dc; text-wrap: balance; }
+  #g-msg.show { animation: msg 1.6s ease both; } #g-msg.show.long { animation-duration: 3.8s; }
+  @keyframes msg { 0% { opacity: 0; transform: translate(-50%, 14px) scale(.94); } 12%, 78% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1); } }
+  #g-pops span { position: absolute; opacity: 0; transform: translate(-50%, 0); white-space: nowrap; font: 700 clamp(18px, 3vh, 28px)/1 "Mountains of Christmas", Georgia, serif; color: #fff; }
+  #g-pops span.gold { color: var(--gold); font-size: clamp(22px, 3.8vh, 36px); }
+  #g-pops span.go { animation: pop .9s ease-out both; }
+  @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 18% { opacity: 1; transform: translate(-50%, -8px) scale(1.12); } 100% { opacity: 0; transform: translate(-50%, -70px) scale(1); } }
+  #g-card { inset: 0; display: grid; place-items: center; opacity: 0; transform: translateY(16px); text-align: center; background: radial-gradient(circle, rgba(4, 7, 26, .72), rgba(4, 7, 26, .2) 70%); }
+  body.game.over #g-card { opacity: 1; transform: none; }
+  #g-card .n { font: 700 clamp(15px, 2vh, 19px) "Cormorant Garamond", serif; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+  #g-card h2 { margin: 4px 0 6px; font: 700 clamp(56px, 12vh, 110px)/1 "Mountains of Christmas", Georgia, serif; color: var(--gold); text-shadow: 0 0 26px rgba(255, 190, 80, .55); font-variant-numeric: tabular-nums; }
+  #g-card p { margin: 4px auto; max-width: 40ch; padding: 0 16px; font-size: clamp(17px, 2.5vh, 23px); color: #f1f4ff; text-wrap: balance; }
+  #g-best { font-style: italic; color: #b9c8f5 !important; }
+  #g-card .row { margin-top: 18px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  #g-card .pill { pointer-events: none; } body.game.over #g-card .pill { pointer-events: auto; }
+  #g-again { background: rgba(255, 226, 160, .22); }
+  @media (prefers-reduced-motion: reduce) { #play, #g-magic.low { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .ui, #fade, #veil { transition-duration: .01s; } }
 </style>
 <script type="importmap">
@@ -46,7 +86,8 @@
 <body>
 <div id="stage"></div>
 <div id="fade"></div>
-<header class="ui"><h1>The Advent House</h1><div id="status"></div></header>
+<div id="mist"></div>
+<header class="ui"><h1>The Advent House</h1><div id="status"></div><button id="play" class="pill">✦ Fly the sleigh</button></header>
 <button id="sound" class="ui" title="Sound on / off" aria-label="Toggle sound">♪</button>
 <div id="toast" class="ui" role="status"></div>
 <div id="cap" class="ui">
@@ -55,6 +96,25 @@
   <p id="text"></p>
   <div id="tune"></div>
   <button id="back">← Back to the Advent House</button>
+</div>
+<div id="hud" class="ui">
+  <button id="g-quit" title="Back to the Advent House" aria-label="Back to the Advent House">←</button>
+  <div id="g-top">
+    <div id="g-score">0</div><div id="g-combo"></div>
+    <div id="g-magic" title="Magic"><i id="g-bar"></i></div>
+    <div id="g-tune"></div>
+  </div>
+  <div id="g-msg" role="status"></div>
+  <div id="g-pops"><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<div id="g-card" class="ui">
+  <div>
+    <div class="n">Midnight Delivery</div>
+    <h2 id="g-final">0</h2>
+    <p id="g-stats"></p>
+    <p id="g-best"></p>
+    <div class="row"><button id="g-again" class="pill">Fly again</button><button id="g-home" class="pill">← Back to the Advent House</button></div>
+  </div>
 </div>
 <div id="veil">✦</div>
 <script>

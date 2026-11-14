@@ -13,6 +13,7 @@ import { DAYS, makeDay } from './days.js';
 import { audio, tuneName } from './audio.js';
 import { smoke, faceB, face } from './days-a.js';
 import { snowman, moose, monkey, blobShadow } from './friends.js';
+import { createGame } from './game.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -29,7 +30,7 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...opened])
 // ---------- renderer ----------
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-const PR = Math.min(devicePixelRatio, 2); renderer.setPixelRatio(PR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+let PR = Math.min(devicePixelRatio, 2); renderer.setPixelRatio(PR); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
 $('stage').appendChild(renderer.domElement);
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(45, 1, 0.1, 600);
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
@@ -116,7 +117,7 @@ const star = bethStar(3.4, scene, 15, 14.5, 0); put(beam(11, 0.2, 2.6, 0xfff0c0,
 nat.userData.click = () => { toast('Away in a manger, no crib for a bed…'); audio.tune(23); }; pickables.push(nat);
 // Father Christmas in the sky
 const team = sleighTeam(3); team.scale.setScalar(1.1); scene.add(team); mesh(sph(4.5), new THREE.MeshBasicMaterial({ visible: false }), 0, 1, 2.5, team);
-team.userData.click = () => { toast('“Ho, ho, ho! Merry Christmas!”'); audio.bells(); const p = team.position; fx.burst(p.x, p.y, p.z, 150, 7, [0xffd34d, 0xff5040, 0xffffff], 2, 1.6, 1.5); }; pickables.push(team);
+team.userData.click = () => { audio.bells(); const p = team.position; fx.burst(p.x, p.y, p.z, 150, 7, [0xffd34d, 0xff5040, 0xffffff], 2, 1.6, 1.5); startGame(); }; pickables.push(team);
 const SP = (a, v) => v.set(46 * Math.sin(a), 21 + 5 * Math.sin(a * 2 + 0.6), -34 + 22 * Math.cos(a)), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
 const shoots = []; function shoot() { shoots.push({ x: rnd(-40, 40), y: rnd(26, 40), z: -60, vx: rnd(-22, 22), vy: rnd(-9, -4), life: rnd(0.8, 1.5) }); }
 
@@ -132,7 +133,8 @@ function status() {
     el.textContent = `The first door opens in ${dd} day${dd === 1 ? '' : 's'} · ${p(Math.floor(s / 3600) % 24)}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}`;
   }
 }
-$('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); };
+$('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
+$('play').onclick = () => { $('play').blur(); startGame(); };
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
 
 // ---------- tweens & camera ----------
@@ -141,7 +143,7 @@ const home = new THREE.Vector3(0, 7, 30), homeLook = new THREE.Vector3(0, 7.4, 0
 let mode = 'home', view = 'main', busy = false, cur = null, T = 0, mx = 0, my = 0, hover = null;
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h); composer.setSize(w, h); bloom.resolution.set(w, h); PX.value = (h * PR) / 900;
-  camera.aspect = w / h; camera.updateProjectionMatrix(); if (cur) { cur.camera.aspect = w / h; cur.camera.updateProjectionMatrix(); }
+  camera.aspect = w / h; camera.updateProjectionMatrix(); if (cur) { cur.camera.aspect = w / h; cur.camera.updateProjectionMatrix(); } game?.resize(w / h);
   const tv = Math.tan((camera.fov * Math.PI) / 360); home.z = Math.max(10.5 / tv, 11.5 / (tv * camera.aspect)) + 1.5;
 }
 addEventListener('resize', resize);
@@ -179,6 +181,27 @@ function lockedDoor(d) {
   d.shake = T; audio.locked(); const dec = isDec();
   toast(dec ? `Not yet! Door ${d.n} opens on ${d.n} December.` : `Door ${d.n} is fast asleep until ${d.n} December.`);
   for (let i = 0; i < 26; i++) fx.emit(d.x + rnd(-0.8, 0.8), d.y + rnd(0, DH), 0.3, rnd(-0.5, 0.5), rnd(0.2, 1.4), rnd(0.3, 1.5), pick([0xffe9a0, 0xffffff, 0x9fd4ff]), rnd(0.6, 1.3), 0.9, 0.8);
+}
+
+// ---------- Midnight Delivery: the sleigh game ----------
+let game = null;
+const setPR = (p) => { PR = p; renderer.setPixelRatio(p); composer.setPixelRatio(p); resize(); };
+const dayKey = () => { const d = today(); return params.get('seed') || `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const newGame = (o = {}) => createGame({ dom: renderer.domElement, audio, seed: dayKey(), onExit: leaveGame, setPR, getPR: () => PR, bot: params.has('bot'), adaptive: !STEPS, ...o });
+function enterGame() { game ??= newGame(); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
+async function startGame() {
+  if (busy || view !== 'main') return; busy = true; mode = 'seq'; audio.unlock(); document.body.classList.add('focus');
+  const from = camera.position.clone(), to = from.clone().lerp(team.position, 0.3); to.y += 4; // rise towards the sleigh, then slip through a snow cloud
+  setTimeout(() => $('mist').classList.add('on'), 1150);
+  await tween(1.6, (k) => { camPos.lerpVectors(from, to, easeIO(k)); camLook.lerpVectors(homeLook, team.position, easeIO(Math.min(1, k * 1.4))); });
+  enterGame(); $('mist').classList.remove('on');
+}
+async function leaveGame() {
+  $('mist').classList.add('on'); await tween(0.5, () => {});
+  game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game'); $('mist').classList.remove('on');
+  const from = new THREE.Vector3(0, 30, home.z + 8), fl2 = new THREE.Vector3(0, 34, -40);
+  await tween(2.4, (k) => { camPos.lerpVectors(from, home, easeIO(k)); camLook.lerpVectors(fl2, homeLook, easeIO(k)); });
+  mode = 'home'; busy = false; document.body.classList.remove('focus'); status();
 }
 
 // ---------- pointer ----------
@@ -229,7 +252,7 @@ function frame() { requestAnimationFrame(frame); if (!STEPS) tick(Math.min(clock
 function tick(dt) {
   T += dt;
   for (let i = tweens.length - 1; i >= 0; i--) { const tw = tweens[i]; tw.t += dt; const k = clamp(tw.t / tw.dur); tw.fn(k); if (k >= 1) { tweens.splice(i, 1); tw.res(); } }
-  if (view === 'main') updateMain(dt); else if (cur) { cur.t += dt; cur.update(cur.t, dt, mx, my); }
+  if (view === 'main') updateMain(dt); else if (view === 'game') game.update(dt); else if (cur) { cur.t += dt; cur.update(cur.t, dt, mx, my); }
   composer.render();
 }
 
@@ -242,9 +265,14 @@ async function start() {
   const o = +params.get('open'); if (params.has('shot')) $('veil').remove();
   const ck = +params.get('click'); if (ck) setTimeout(() => openDoor(doors.find((x) => x.n === ck)), STEPS ? 0 : 600);
   if (STEPS) (async () => { for (let i = 0; i < STEPS; i++) { if (i === +params.get("leave")) leaveDay(); tick(0.05); await new Promise((r) => setTimeout(r, 0)); } })();
+  if (params.has('game')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); enterGame(); }
   if (o >= 1 && o <= 24) { busy = true; mode = 'seq'; document.body.classList.add('focus'); const d = doors.find((x) => x.n === o); camPos.set(d.x, d.y + 1, 7.4); camLook.set(d.x, d.y + 1, 0); enterDay(d); }
 }
 window.__test = () => { const bad = []; for (let n = 1; n <= 24; n++) { try { const d = makeDay(n); for (const t of [0.1, 2, 5, 9]) d.update(t, 0.016); renderer.render(d.scene, d.camera); d.dispose(); } catch (e) { bad.push(n + ': ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]); } } return bad.length ? bad : 'all 24 ok'; };
+// plays the game flat out with the autopilot (no rendering) and reports how the run went
+window.__gameTest = (secs = 240, o = {}) => { const g = newGame({ bot: true, adaptive: false, record: false, onExit() {}, ...o }); g.start(); let i = 0; for (; i < secs * 60 && g.stats.state !== 'over'; i++) g.update(1 / 60); const s = g.stats; g.stop(); return { ...s, frames: i }; };
+// renders n game frames back to back and reports the average cost of one (ms), GPU included
+window.__gamePerf = (n = 120) => { const gl = renderer.getContext(), px = new Uint8Array(4), t0 = performance.now(); for (let i = 0; i < n; i++) { game.update(1 / 60); composer.render(); } gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const ms = (performance.now() - t0) / n; renderer.render(game.scene, game.camera); return { ms: +ms.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr: PR, w: innerWidth, h: innerHeight, stats: game.stats }; };
 start().then(() => {
   if (!params.has('selftest')) return; const pre = document.createElement('pre'); pre.id = 'selftest'; document.body.appendChild(pre);
   setTimeout(() => { pre.textContent = 'SELFTEST ' + JSON.stringify({ scenes: window.__test(), errors: window.__errs }); }, 1500);
