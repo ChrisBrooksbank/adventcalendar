@@ -104,7 +104,7 @@ const sm2 = friend(put(snowman({ scarf: 0x39d353, hat: 'bobble' }), scene, -9.7,
 const lpL = put(lampPost(3.3), scene, -7.4, 0, 8.2), lpR = put(lampPost(3.3), scene, 7.4, 0, 8.2);
 const george = friend(put(monkey(), scene, -7.4, 4.05, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
 const mse = friend(faceB(put(moose(), scene, -13.6, gy(-13.6, 4.5), 4.5, 1.1), 0, 30), 'The moose nods, slowly and wisely, as moose do.', 0.25, 0);
-const cow = friend(faceB(put(highlandCow(), scene, 9.6, gy(9.6, 7.4), 7.4, 1.05), -2, 30), '“Mooo!” says the Highland cow, from somewhere under her fringe.', 0.3, 2);
+const cow = friend(faceB(put(highlandCow(), scene, 9.6, gy(9.6, 7.4), 7.4, 1.05), -2, 30), '“Mooo!” says Hamish the Highland cow, from somewhere under his fringe.', 0.3, 2);
 mesh(tor(0.22, 0.05, 6, 14), M(0xc8102e), 0, -0.1, 0, cow.userData.neck).rotation.x = Math.PI / 2;
 for (let i = 0; i < 9; i++) { const sx = i % 2 ? 1 : -1; put(gift(rnd(0.5, 0.9)), scene, sx * rnd(9.4, 10.6), 0, rnd(1, 2.6), 1, rnd(2)); }
 // nativity

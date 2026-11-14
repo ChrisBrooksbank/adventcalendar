@@ -154,7 +154,7 @@ export const DAYS_A = [
     },
   },
   { // 7
-    t: 'We Wish You a Merry Christmas', s: 'Under the lamplight the carollers sing, and every note floats up to join the stars. Even the Highland cow hums along.',
+    t: 'We Wish You a Merry Christmas', s: 'Under the lamplight the carollers sing, and every note floats up to join the stars. Even Hamish the Highland cow hums along.',
     col: [0xffc060, 0xff7ad9], cam: [0, 2.2, 8.5], look: [0, 1.9, 0],
     build(g) {
       g.add(snowGround()); forest(g, 26, 12, 30); const cot = put(house({ color: 0xb0886a, w: 4, d: 3 }), g, 1.2, 0, -5.5, 1.6);

@@ -428,7 +428,80 @@ export const ox = () => beast({ color: 0x6b3f22, len: 1.1, r: 0.42, ht: 0.5, nl:
 export const sheep = () => beast({ color: 0xf2efe6, len: 0.4, r: 0.27, ht: 0.3, nl: 0.2, hs: 0.12, neck: 0.9, wool: true, headColor: 0x2c2826, leg: 0x2c2826, tail: 'puff', lw: 0.04 });
 export const polarBear = (s = 1) => { const b = beast({ color: 0xf6f4ee, len: 1.2, r: 0.46, ht: 0.42, nl: 0.35, hs: 0.24, neck: 1.0, ear: 0.35, lw: 0.13, tail: 'puff', muzzle: 0x18181c, muzzleS: 0.3 }); b.scale.setScalar(s); return b; };
 export const moose = () => beast({ color: 0x7a5236, len: 1.35, r: 0.42, ht: 1.15, nl: 0.6, hs: 0.26, neck: 0.85, antlers: 'moose', hump: true, humpX: 0.45, dewlap: true, leg: 0xb9a78c, lw: 0.07, muzzle: 0x6b5140, muzzleS: 0.8, ear: 0.7 });
-export const highlandCow = () => beast({ color: 0xb8651f, len: 1.15, r: 0.46, ht: 0.48, nl: 0.28, hs: 0.25, neck: 1.15, horns: 'long', shag: true, fringe: true, lw: 0.085, muzzle: 0xe6c3a0, muzzleS: 0.6, ear: 0.5, earA: 1.3 });
+// Hamish the Highland cow — own build (not the generic beast) so the anatomy reads properly:
+// horns sweep out from the poll above the ears, a dossan over the eyes, layered shaggy coat. Faces +x.
+const _up = new THREE.Vector3(0, 1, 0);
+function tuft(parent, mat, x, y, z, dx, dy, dz, len, rad) {
+  const d = new THREE.Vector3(dx, dy, dz).normalize(), m = mesh(lockGeo(), mat, x + d.x * len * 0.2, y + d.y * len * 0.2, z + d.z * len * 0.2, parent);
+  m.scale.set(rad, len * 0.8, rad); m.quaternion.setFromUnitVectors(_up, d); return m;
+}
+// a lock of hair: rounded root, tapering to a soft point at +y
+let _lock;
+const lockGeo = () => _lock ??= (() => {
+  const g = sph(1, 7, 6), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y < 0) p.setY(i, y * 0.3); else { const k = 1 - 0.45 * y; p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } }
+  g.computeVertexNormals(); return g;
+})();
+function hornGeo(pts, r0, r1) {
+  const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), ts = 22, rs = 8, geo = new THREE.TubeGeometry(curve, ts, 1, rs, false);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3), P = new THREE.Vector3(), v = new THREE.Vector3(), ca = new THREE.Color(0xefe4c8), cb = new THREE.Color(0x2e2620), c = new THREE.Color();
+  for (let i = 0; i <= ts; i++) {
+    const u = i / ts, rad = lerp(r0, r1, Math.pow(u, 0.8)); curve.getPointAt(u, P); c.copy(ca).lerp(cb, smooth(0.55, 1, u));
+    for (let j = 0; j <= rs; j++) { const k = i * (rs + 1) + j; v.fromBufferAttribute(pos, k).sub(P).multiplyScalar(rad).add(P); pos.setXYZ(k, v.x, v.y, v.z); col.set([c.r, c.g, c.b], k * 3); }
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo;
+}
+export function highlandCow() {
+  const g = new THREE.Group(), col = 0xb5601c, L = 1.15, r = 0.46, ht = 0.48, hs = 0.25, nl = 0.28, nk = 1.15, lw = 0.085, cy = ht + r;
+  const shade = (l) => M(new THREE.Color(col).offsetHSL(0, 0, l), { r: 1 });
+  const c = shade(0), coats = [shade(-0.07), shade(-0.03), shade(0.03), shade(0.07)], dark = M(0x1c1410, { r: 0.6 });
+  // barrel body with raised withers
+  const body = mesh(new THREE.CapsuleGeometry(r, L, 8, 16), c, 0, cy, 0, g); body.rotation.z = Math.PI / 2; body.scale.x = 1.05;
+  mesh(sph(r * 0.9, 14, 10), c, L * 0.32, cy + r * 0.22, 0, g).scale.set(1.15, 1, 0.98);
+  // long layered coat hanging down both flanks
+  for (const sz of [-1, 1]) for (let i = 0; i < 64; i++) {
+    const a = 0.35 + ((i % 8) + rnd()) * 0.25, x = lerp(-L / 2 - r * 0.6, L / 2 + r * 0.6, (Math.floor(i / 8) + rnd()) / 8), ex = Math.max(0, Math.abs(x) - L / 2), rr = Math.sqrt(r * r - ex * ex) * 0.97;
+    tuft(g, pick(coats), x, cy + rr * Math.cos(a), sz * rr * Math.sin(a), rnd(-0.25, 0.25), -Math.sin(a) - 0.5, sz * Math.max(0.12, Math.cos(a) * 0.8), r * rnd(0.7, 1.15), r * rnd(0.16, 0.23));
+  }
+  for (let i = -2; i <= 2; i++) tuft(g, pick(coats), L / 2 + r * 0.72, cy - r * 0.15, i * r * 0.24, 0.25, -1, i * 0.08, r * rnd(0.8, 1), r * 0.28); // brisket
+  // sturdy legs with feathering and dark hooves
+  const legs = [], ll = ht + r * 0.6;
+  for (const sx of [1, -1]) for (const sz of [1, -1]) {
+    const p = grp(g, sx * (L * 0.45 + r * 0.2), ll, sz * r * 0.55);
+    mesh(cyl(lw * 1.7, lw * 1.05, ll * 0.6, 8), c, 0, -ll * 0.3, 0, p); mesh(cyl(lw, lw * 0.9, ll * 0.4, 8), coats[1], 0, -ll * 0.78, 0, p);
+    mesh(cyl(lw, lw * 1.2, 0.08, 8), dark, 0, -ll + 0.04, 0, p);
+    for (let i = 0; i < 4; i++) { const a = i * TAU / 4 + 0.6; tuft(p, pick(coats), Math.cos(a) * lw * 0.9, -ll * 0.28, Math.sin(a) * lw * 0.9, Math.cos(a) * 0.15, -1, Math.sin(a) * 0.15, ll * 0.5, lw * 1.2); }
+    legs.push(p);
+  }
+  // tail with a switch
+  const tail = grp(g, -L / 2 - r * 0.93, cy + r * 0.35, 0); tail.rotation.z = -0.18;
+  mesh(cyl(lw * 0.45, lw * 0.35, r * 1.7, 6), c, 0, -r * 0.85, 0, tail); mesh(sph(lw * 1.05, 8, 6), coats[0], 0, -r * 1.9, 0, tail).scale.y = 2.3;
+  // short thick neck with throat hair
+  const neck = grp(g, L / 2 + r * 0.35, ht + r * 1.4, 0); neck.rotation.z = -nk; mesh(cyl(r * 0.42, r * 0.62, nl + r * 0.5, 10), c, 0, nl / 2 - r * 0.25, 0, neck);
+  for (let i = 0; i < 4; i++) tuft(neck, pick(coats), r * 0.42, -0.05 + i * 0.08, (i % 2 ? 1 : -1) * 0.1, 0.91, -0.41, 0, r * 0.8, r * 0.24);
+  // head: broad skull, wide muzzle, pale nose pad
+  const head = grp(neck, 0, nl, 0); head.rotation.z = nk - 0.2;
+  mesh(sph(hs, 16, 12), c, hs * 0.35, 0, 0, head).scale.set(1.3, 1, 1);
+  mesh(sph(hs * 0.72, 14, 10), coats[2], hs * 1.3, -hs * 0.22, 0, head).scale.set(1, 0.8, 0.95);
+  const nose = mesh(sph(hs * 0.5, 12, 9), M(0xd9a58a, { r: 0.6 }), hs * 1.78, -hs * 0.3, 0, head); nose.scale.set(0.55, 0.6, 1.05);
+  const hornM = M(0xffffff, { r: 0.45 }); hornM.vertexColors = true;
+  for (const sz of [-1, 1]) {
+    mesh(sph(hs * 0.07, 6, 5), dark, hs * 2.03, -hs * 0.24, sz * hs * 0.2, head); // nostril
+    mesh(sph(hs * 0.13, 8, 6), M(0x0a0a0a, { r: 0.2 }), hs * 0.95, hs * 0.3, sz * hs * 0.8, head); // eye
+    // ears sit low on the side of the head, below the horns, drooping a little
+    const e = mesh(sph(hs * 0.45, 10, 8), c, -hs * 0.1, hs * 0.2, sz * hs * 1.25, head); e.scale.set(0.5, 0.35, 1); e.rotation.x = sz * 0.25;
+    tuft(head, coats[3], -hs * 0.1, hs * 0.16, sz * hs * 1.2, 0, -0.5, sz, hs * 0.75, hs * 0.16);
+    // horns grow from the poll, sweep out level, then curve forward and up to dark tips
+    mesh(hornGeo([[-0.15, 0.5, 0.5], [-0.15, 0.62, 1.3], [0.05, 0.7, 2.0], [0.5, 0.95, 2.5], [0.85, 1.45, 2.65]].map(([x, y, z]) => [x * hs, y * hs, z * hs * sz]), hs * 0.2, hs * 0.03), hornM, 0, 0, 0, head);
+    tuft(head, coats[1], hs * 0.45, hs * 0.55, sz * hs * 0.8, 0.35, -1, sz * 0.15, hs * 1.2, hs * 0.26); // cheek lock
+    tuft(head, coats[0], hs * 0.9, -hs * 0.5, sz * hs * 0.45, 0.2, -1, 0, hs * 0.7, hs * 0.22); // jaw
+  }
+  // dossan: the mop between the horns and the fringe falling over the eyes
+  mesh(sph(hs * 0.62, 10, 8), coats[2], hs * 0.15, hs * 0.72, 0, head).scale.set(1.1, 0.55, 1.15);
+  for (let i = -2; i <= 2; i++) tuft(head, coats[3], hs * 0.1, hs * 0.95, i * hs * 0.28, 0.9, -0.2, i * 0.1, hs * 1.1, hs * 0.26);
+  for (let i = -3; i <= 3; i++) tuft(head, coats[2 + (i & 1)], hs * (0.55 + rnd(0.15)), hs * 0.82, i * hs * 0.22, 0.85, -0.5 + rnd(-0.1, 0.1), i * 0.06, hs * rnd(1.15, 1.4), hs * 0.24);
+  g.userData = { legs, neck, head, nose, body, nk }; return g;
+}
 // George — a cheerful little brown monkey in a Christmas hat.
 export function monkey() {
   const g = new THREE.Group(), fur = M(0x7a4a22), face = M(0xecc79c), body = grp(g);
