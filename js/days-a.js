@@ -2,8 +2,9 @@
 import {
   THREE, LK, TAU, rnd, pick, clamp, lerp, smooth, easeOut, easeBack, M, G, sph, box, cyl, cone, tor, mesh, grp, put, light, star3d,
   flakeTex, glyphTex, sprite, halo, twinkles, Particles, aurora, moon, snowGround, groundY, pine, forest, win, house, present, gift, GIFT,
-  lampPost, fire, candle, snowman, figure, walk, santa, beast, gallop, nod, reindeer, horse, moose, highlandCow, monkey, bird, sleigh, sleighTeam,
+  lampPost, fire, candle, figure, walk, santa, beast, gallop, nod, reindeer, horse, highlandCow, bird, sleigh, sleighTeam,
 } from './kit.js';
+import { snowman, moose, monkey } from './friends.js';
 
 export const face = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z); return o; };
 export const faceB = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z) - Math.PI / 2; return o; };

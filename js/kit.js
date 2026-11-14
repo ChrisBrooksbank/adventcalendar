@@ -305,22 +305,6 @@ export function candle(h = 0.4, color = 0xf3e9d0) {
 
 // ---------- characters ----------
 const COAL = () => M(0x111114, { r: 0.4 });
-export function snowman(o = {}) {
-  const g = new THREE.Group(), S = M(0xf7faff, { r: 0.92 }), C = COAL();
-  mesh(sph(0.6, 20, 14), S, 0, 0.52, 0, g); mesh(sph(0.44, 20, 14), S, 0, 1.32, 0, g);
-  const head = grp(g, 0, 1.95, 0); mesh(sph(0.32, 20, 14), S, 0, 0, 0, head);
-  for (const sx of [-1, 1]) mesh(sph(0.04, 8, 6), C, sx * 0.11, 0.08, 0.285, head);
-  const nose = mesh(cone(0.05, 0.3, 8), M(0xff7a1a), 0, 0, 0.44, head); nose.rotation.x = Math.PI / 2;
-  for (let i = -2; i <= 2; i++) mesh(sph(0.022, 6, 5), C, i * 0.05, -0.1 - Math.cos(i * 0.6) * 0.04 + 0.03, 0.3, head);
-  const hat = grp(head, 0, 0.24, 0); hat.rotation.z = -0.15;
-  if (o.hat === 'bobble') { mesh(sph(0.3, 14, 10, ), M(o.scarf ?? 0xc8102e), 0, 0, 0, hat).scale.y = 0.75; mesh(sph(0.09), M(0xffffff), 0, 0.27, 0, hat); }
-  else { mesh(cyl(0.33, 0.33, 0.035, 16), C, 0, 0, 0, hat); mesh(cyl(0.2, 0.22, 0.32, 16), C, 0, 0.17, 0, hat); mesh(cyl(0.225, 0.225, 0.07, 16), M(o.scarf ?? 0xc8102e), 0, 0.06, 0, hat); }
-  const sc = M(o.scarf ?? 0xc8102e); mesh(tor(0.29, 0.085, 8, 20), sc, 0, 1.68, 0, g).rotation.x = Math.PI / 2;
-  mesh(box(0.14, 0.42, 0.06), sc, 0.2, 1.48, 0.33, g).rotation.z = 0.2;
-  for (let i = 0; i < 3; i++) mesh(sph(0.045, 8, 6), C, 0, 1.18 + i * 0.16, 0.42 - Math.abs(i - 1) * 0.04, g);
-  const arms = [-1, 1].map((sx) => { const a = grp(g, sx * 0.38, 1.42, 0); a.rotation.z = -sx * 2.0; const st = mesh(cyl(0.02, 0.028, 0.75, 5), M(0x4a3020), 0, -0.37, 0, a); mesh(cyl(0.012, 0.016, 0.2, 4), st.material, 0.06, -0.7, 0, a).rotation.z = 0.7; return a; });
-  g.userData = { head, hat, armL: arms[0], armR: arms[1] }; return g;
-}
 export function figure(o = {}) {
   const g = new THREE.Group(), robe = M(o.robe ?? 0x8a3a3a), skin = M(o.skin ?? 0xe8b996), body = grp(g);
   mesh(cyl(0.13, 0.32, 1.08, 14), robe, 0, 0.54, 0, body); mesh(sph(0.165, 12, 8), robe, 0, 1.06, 0, body).scale.set(1.15, 0.7, 0.9);
@@ -427,11 +411,10 @@ export const camel = () => beast({ color: 0xc9a063, len: 1.3, r: 0.38, ht: 1.15,
 export const ox = () => beast({ color: 0x6b3f22, len: 1.1, r: 0.42, ht: 0.5, nl: 0.3, hs: 0.22, neck: 1.1, horns: 'short', lw: 0.08, muzzle: 0xd9b89a, muzzleS: 0.65 });
 export const sheep = () => beast({ color: 0xf2efe6, len: 0.4, r: 0.27, ht: 0.3, nl: 0.2, hs: 0.12, neck: 0.9, wool: true, headColor: 0x2c2826, leg: 0x2c2826, tail: 'puff', lw: 0.04 });
 export const polarBear = (s = 1) => { const b = beast({ color: 0xf6f4ee, len: 1.2, r: 0.46, ht: 0.42, nl: 0.35, hs: 0.24, neck: 1.0, ear: 0.35, lw: 0.13, tail: 'puff', muzzle: 0x18181c, muzzleS: 0.3 }); b.scale.setScalar(s); return b; };
-export const moose = () => beast({ color: 0x7a5236, len: 1.35, r: 0.42, ht: 1.15, nl: 0.6, hs: 0.26, neck: 0.85, antlers: 'moose', hump: true, humpX: 0.45, dewlap: true, leg: 0xb9a78c, lw: 0.07, muzzle: 0x6b5140, muzzleS: 0.8, ear: 0.7 });
 // Hamish the Highland cow — own build (not the generic beast) so the anatomy reads properly:
 // horns sweep out from the poll above the ears, a dossan over the eyes, layered shaggy coat. Faces +x.
 const _up = new THREE.Vector3(0, 1, 0);
-function tuft(parent, mat, x, y, z, dx, dy, dz, len, rad) {
+export function tuft(parent, mat, x, y, z, dx, dy, dz, len, rad) {
   const d = new THREE.Vector3(dx, dy, dz).normalize(), m = mesh(lockGeo(), mat, x + d.x * len * 0.2, y + d.y * len * 0.2, z + d.z * len * 0.2, parent);
   m.scale.set(rad, len * 0.8, rad); m.quaternion.setFromUnitVectors(_up, d); return m;
 }
@@ -501,22 +484,6 @@ export function highlandCow() {
   for (let i = -2; i <= 2; i++) tuft(head, coats[3], hs * 0.1, hs * 0.95, i * hs * 0.28, 0.9, -0.2, i * 0.1, hs * 1.1, hs * 0.26);
   for (let i = -3; i <= 3; i++) tuft(head, coats[2 + (i & 1)], hs * (0.55 + rnd(0.15)), hs * 0.82, i * hs * 0.22, 0.85, -0.5 + rnd(-0.1, 0.1), i * 0.06, hs * rnd(1.15, 1.4), hs * 0.24);
   g.userData = { legs, neck, head, nose, body, nk }; return g;
-}
-// George — a cheerful little brown monkey in a Christmas hat.
-export function monkey() {
-  const g = new THREE.Group(), fur = M(0x7a4a22), face = M(0xecc79c), body = grp(g);
-  mesh(sph(0.28, 14, 10), fur, 0, 0.55, 0, body).scale.set(1, 1.2, 0.9); mesh(sph(0.2, 12, 8), face, 0, 0.52, 0.13, body).scale.set(1, 1.15, 0.7);
-  const head = grp(body, 0, 1.03, 0); mesh(sph(0.24, 14, 10), fur, 0, 0, 0, head); mesh(sph(0.185, 12, 8), face, 0, -0.02, 0.1, head).scale.set(1, 0.92, 0.8);
-  mesh(sph(0.115, 10, 8), face, 0, -0.1, 0.19, head).scale.set(1.2, 0.8, 0.8); mesh(tor(0.06, 0.012, 5, 10, Math.PI), M(0x5a2a1a), 0, -0.1, 0.28, head).rotation.z = Math.PI;
-  for (const sx of [-1, 1]) { mesh(sph(0.03, 6, 5), M(0x0a0a0a, { r: 0.2 }), sx * 0.075, 0.04, 0.215, head); mesh(sph(0.09, 8, 6), face, sx * 0.25, 0.02, 0, head).scale.z = 0.5; }
-  const hat = grp(head, 0, 0.17, 0); hat.rotation.z = 0.35; mesh(cone(0.2, 0.42, 12), M(0xc4131f), 0, 0.2, 0, hat); mesh(tor(0.19, 0.055, 6, 16), M(0xffffff), 0, 0.01, 0, hat).rotation.x = Math.PI / 2; mesh(sph(0.065), M(0xffffff), 0, 0.43, 0, hat);
-  mesh(tor(0.19, 0.06, 6, 14), M(0x1f7a4a), 0, 0.84, 0, body).rotation.x = Math.PI / 2;
-  const arms = [-1, 1].map((sx) => { const a = grp(body, sx * 0.27, 0.76, 0); a.rotation.z = sx * 0.3; mesh(cyl(0.05, 0.05, 0.5, 6), fur, 0, -0.25, 0, a); mesh(sph(0.07, 8, 6), face, 0, -0.52, 0, a); return a; });
-  for (const sx of [-1, 1]) { const l = grp(body, sx * 0.14, 0.32, 0.05); l.rotation.x = -1.2; l.rotation.z = sx * 0.3; mesh(cyl(0.055, 0.05, 0.36, 6), fur, 0, -0.18, 0, l); mesh(sph(0.075, 8, 6), face, 0, -0.38, 0.03, l).scale.z = 1.5; }
-  const tail = mesh(tor(0.24, 0.035, 6, 18, Math.PI * 1.5), fur, 0, 0.42, -0.4, body); tail.rotation.y = Math.PI / 2;
-  g.userData = { head, armL: arms[0], armR: arms[1], body, tail };
-  g.userData.wave = (t) => { arms[1].rotation.z = 2.5 + Math.sin(t * 7) * 0.4; head.rotation.z = Math.sin(t * 2) * 0.15; tail.rotation.x = Math.sin(t * 3) * 0.3; };
-  return g;
 }
 export function bird(bodyC = 0x7a5a40, breast = 0xe8501c, s = 1) {
   const g = new THREE.Group(), b = grp(g); mesh(sph(0.16, 12, 9), M(bodyC), 0, 0.2, 0, b).scale.set(1, 0.95, 1.25);

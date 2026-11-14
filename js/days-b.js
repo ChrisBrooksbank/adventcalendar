@@ -2,9 +2,10 @@
 import {
   THREE, LK, TAU, rnd, pick, clamp, lerp, smooth, easeOut, easeBack, M, G, sph, box, cyl, cone, tor, mesh, grp, put, light, prism,
   sprite, halo, twinkles, Particles, aurora, moon, bethStar, beam, snowGround, groundY, pine, forest, cloud, win, house, gift,
-  lampPost, fire, candle, snowman, figure, walk, angel, gallop, nod, donkey, camel, sheep, polarBear, moose, highlandCow, monkey, bird,
+  lampPost, fire, candle, figure, walk, angel, gallop, nod, donkey, camel, sheep, polarBear, highlandCow, bird,
   sleighTeam, stable, manger, mary, joseph, shepherd, king, palm, glowTex,
 } from './kit.js';
+import { snowman, moose, monkey } from './friends.js';
 import { face, faceB, smoke, treeLights, topStar } from './days-a.js';
 
 const scroller = (items, span = 46, speed = 1.2) => (t) => items.forEach((o) => { o.position.x = (((o.userData.x0 - t * speed) % span) + span * 1.5) % span - span / 2; });

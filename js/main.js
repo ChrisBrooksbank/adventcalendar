@@ -6,12 +6,13 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import {
   TAU, PX, rnd, pick, clamp, lerp, smooth, easeIO, easeOut, M, G, sph, box, cyl, cone, tor, mesh, grp, put, light, prism, star3d,
   halo, twinkles, starfield, snowfall, Particles, skyDome, aurora, moon, bethStar, beam, snowGround, groundY, pine, forest, gift, lampPost,
-  snowman, sleighTeam, stable, manger, mary, joseph, sheep, moose, highlandCow, monkey, nod,
+  sleighTeam, stable, manger, mary, joseph, sheep, highlandCow, nod,
 } from './kit.js';
 import { DW, DH, makeFragments, applyEffect, portalMaterial } from './doors.js';
 import { DAYS, makeDay } from './days.js';
 import { audio, tuneName } from './audio.js';
 import { smoke, faceB, face } from './days-a.js';
+import { snowman, moose, monkey, blobShadow } from './friends.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -99,13 +100,14 @@ function setThumb(d, day) {
 // friends in the snow
 function friend(o, msg, hop = 0.8, sound = 0) { o.userData.y0 = o.position.y; o.userData.t0 = -9; o.userData.hop = hop; o.userData.click = () => { o.userData.t0 = T; toast(typeof msg === 'function' ? msg() : msg); audio.chime(sound); fxBurst(o, 40); }; pickables.push(o); return o; }
 const fxBurst = (o, n) => { const p = o.getWorldPosition(new THREE.Vector3()); fx.burst(p.x, p.y + 1.5, p.z, n, 3, [0xffd34d, 0xffffff, 0x9fd4ff], 1.3, 1.1, 2); };
-const sm1 = friend(put(snowman({ scarf: 0xc8102e }), scene, -11.6, gy(-11.6, 5.5), 5.5, 1.35, 0.5), 'The snowman tips his hat. “Not long now!”', 0.9, 1);
-const sm2 = friend(put(snowman({ scarf: 0x39d353, hat: 'bobble' }), scene, -9.7, gy(-9.7, 7.2), 7.2, 0.8, 0.3), '“I’m only little, but I’m very good at waiting.”', 1.2, 3);
+const sm1 = friend(put(snowman({ scarf: 0xc8102e }), scene, -10.0, gy(-10, 6), 6, 1.35, 0.45), 'The snowman tips his hat. “Not long now!”', 0.9, 1);
+const sm2 = friend(put(snowman({ scarf: 0x39d353, hat: 'bobble' }), scene, -8.9, gy(-8.9, 7.9), 7.9, 0.8, 0.3), '“I’m only little, but I’m very good at waiting.”', 1.2, 3);
 const lpL = put(lampPost(3.3), scene, -7.4, 0, 8.2), lpR = put(lampPost(3.3), scene, 7.4, 0, 8.2);
-const george = friend(put(monkey(), scene, -7.4, 4.05, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
-const mse = friend(faceB(put(moose(), scene, -13.6, gy(-13.6, 4.5), 4.5, 1.1), 0, 30), 'The moose nods, slowly and wisely, as moose do.', 0.25, 0);
+const george = friend(put(monkey(), scene, -7.4, 3.84, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
+const mse = friend(faceB(put(moose(), scene, -13.1, gy(-13.1, 4), 4, 1.1), -4, 30), 'Monty the moose nods, slowly and wisely, as moose do. His antler lights twinkle.', 0.25, 0);
 const cow = friend(faceB(put(highlandCow(), scene, 9.6, gy(9.6, 7.4), 7.4, 1.05), -2, 30), '“Mooo!” says Hamish the Highland cow, from somewhere under his fringe.', 0.3, 2);
 mesh(tor(0.22, 0.05, 6, 14), M(0xc8102e), 0, -0.1, 0, cow.userData.neck).rotation.x = Math.PI / 2;
+[[sm1, 1.5], [sm2, 0.9], [mse, 2.1], [cow, 1.8]].forEach(([o, r]) => put(blobShadow(r, 0.55), scene, o.position.x, o.position.y + 0.05, o.position.z));
 for (let i = 0; i < 9; i++) { const sx = i % 2 ? 1 : -1; put(gift(rnd(0.5, 0.9)), scene, sx * rnd(9.4, 10.6), 0, rnd(1, 2.6), 1, rnd(2)); }
 // nativity
 const nat = grp(scene, 14.5, gy(14.5, 4.5), 4.5); nat.rotation.y = -0.5; nat.scale.setScalar(1.1); nat.add(stable()); put(manger(), nat, 0, 0, 0.35); put(mary(), nat, -0.8, 0, 0.3, 0.85, 0.9); put(joseph(), nat, 0.9, 0, 0.15, 1, -0.8);
