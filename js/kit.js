@@ -225,14 +225,64 @@ export function snowGround(R = 110, bump = 0.6, color = 0xc2d0ee, flat = 9) {
 }
 export const groundY = (x, z, bump = 0.6, flat = 9) => hillH(x, z) * smooth(flat, flat + 26, Math.hypot(x, z)) * bump;
 export function pine(h = 3, snowy = true) {
-  const g = new THREE.Group(); mesh(cyl(0.05 * h, 0.07 * h, 0.3 * h, 6), M(0x4a3020), 0, 0.15 * h, 0, g);
-  const green = M(new THREE.Color(0x1c5a3c).offsetHSL(rnd(-0.02, 0.02), 0, rnd(-0.03, 0.03))), white = M(0xf4f8ff, { r: 0.95 });
-  for (let i = 0; i < 4; i++) {
-    const r = h * (0.36 - 0.075 * i), ch = h * 0.34, y = h * (0.18 + 0.185 * i);
-    mesh(cone(r, ch, 9), green, 0, y + ch / 2, 0, g);
-    if (snowy) mesh(cone(r * 0.7, ch * 0.6, 9), white, 0, y + ch * 0.705, 0, g);
-  }
+  const g = new THREE.Group();
+  const material = M(0xffffff, { r: 0.94 }); material.vertexColors = true;
+  const tree = mesh(pineGeometry(snowy), material, 0, 0, 0, g);
+  tree.scale.set(h * rnd(0.9, 1.08), h, h * rnd(0.9, 1.08));
+  tree.rotation.y = rnd(TAU);
   return g;
+}
+// Bake the boughs into one mesh so a detailed forest still needs one draw per tree.
+// The same unit geometry is used by the delivery game's instanced trees.
+export function pineGeometry(snowy = true) {
+  const positions = [], normals = [], colors = [], transform = new THREE.Object3D();
+  const tint = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  const foliage = new THREE.Color(0x205a42).offsetHSL(rnd(-0.018, 0.018), 0, rnd(-0.025, 0.025));
+  function add(geo, color, x, y, z, sx = 1, sy = 1, sz = 1, direction) {
+    transform.position.set(x, y, z); transform.scale.set(sx, sy, sz);
+    transform.quaternion.identity();
+    if (direction) transform.quaternion.setFromUnitVectors(up, direction.clone().normalize());
+    transform.updateMatrix();
+    const baked = geo.index ? geo.toNonIndexed() : geo;
+    baked.applyMatrix4(transform.matrix); tint.set(color);
+    positions.push(...baked.attributes.position.array); normals.push(...baked.attributes.normal.array);
+    for (let i = 0; i < baked.attributes.position.count; i++) colors.push(tint.r, tint.g, tint.b);
+    baked.dispose(); if (baked !== geo) geo.dispose();
+  }
+  const leanX = rnd(-0.025, 0.025), leanZ = rnd(-0.025, 0.025), phase = rnd(TAU);
+  add(cyl(0.009, 0.038, 0.96, 9), 0x634735, leanX / 2, 0.48, leanZ / 2);
+  for (let tier = 0; tier < 9; tier++) {
+    const t = tier / 9, y = 0.19 + t * 0.79, radius = 0.34 * Math.pow(1 - t, 0.9);
+    const count = tier < 5 ? 7 : 5;
+    // Staggered whorls, open gaps and drooping tips break up the cone silhouette.
+    for (let j = 0; j < count; j++) {
+      const angle = phase + j * TAU / count + tier * 2.399 + rnd(-0.16, 0.16);
+      const length = radius * rnd(0.78, 1.15), dx = Math.cos(angle), dz = Math.sin(angle);
+      const by = y + rnd(-0.018, 0.018), drop = length * rnd(0.12, 0.25);
+      const direction = new THREE.Vector3(dx * length, -drop, dz * length);
+      add(cyl(0.002, 0.008 * (1 - t) + 0.002, direction.length(), 5), 0x614735,
+        leanX * t + dx * length / 2, by - drop / 2, leanZ * t + dz * length / 2, 1, 1, 1, direction);
+      for (let k = 0; k < 3; k++) {
+        const f = 0.28 + k * 0.27, x = leanX * t + dx * length * f, z = leanZ * t + dz * length * f;
+        const py = by - drop * f, width = length * (0.28 - k * 0.055);
+        const green = foliage.clone().offsetHSL(0, rnd(-0.05, 0.05), rnd(-0.035, 0.045));
+        add(cone(1, 1, 7), green, x, py + width * 0.55, z,
+          width, width * rnd(1.8, 2.5), width, new THREE.Vector3(dx * 0.3, 1, dz * 0.3));
+        if (snowy && (k < 2 || Math.random() < 0.6)) {
+          add(sph(1, 7, 4), pick([0xf4f8ff, 0xdce8f5, 0xeaf3fc]),
+            x, py + width * 1.1, z, width * 0.85, width * rnd(0.18, 0.32), width * 0.76);
+        }
+      }
+    }
+  }
+  add(cone(0.052, 0.23, 9), foliage, leanX, 0.96, leanZ);
+  if (snowy) add(cone(0.025, 0.11, 7), 0xf4f8ff, leanX, 1.015, leanZ);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 export function forest(parent, n, r0, r1, bump = 0.6, keep = (x, z) => !(z > 2 && Math.abs(x) < z * 0.75 + 3)) {
   for (let i = 0; i < n; i++) {

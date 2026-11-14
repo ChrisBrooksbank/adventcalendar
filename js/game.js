@@ -2,7 +2,7 @@
 // The sleigh stays near the origin; the world scrolls past it (everything in `world` sits at z = -distance).
 import {
   THREE, TAU, PX, rnd, pick, clamp, lerp, easeOut, M, G, sph, box, cyl, cone, tor, mesh, grp, prism, star3d, halo,
-  starfield, Particles, skyDome, aurora, moon, light, sleighTeam, present, GIFT,
+  starfield, Particles, skyDome, aurora, moon, light, sleighTeam, present, GIFT, pineGeometry,
 } from './kit.js';
 import { tuneName } from './audio.js';
 
@@ -47,9 +47,7 @@ function houseGeo(s, wall) {
   return { body, wins: merge(wins), chim: new THREE.Vector3(cx, h + rh * 1.12, cz) };
 }
 function pineGeo() {
-  const parts = [[cyl(0.05, 0.07, 0.3, 6), 0x4a3020, 0, 0.15, 0]];
-  for (let i = 0; i < 4; i++) { const r = 0.36 - 0.075 * i, ch = 0.34, y = 0.18 + 0.185 * i; parts.push([cone(r, ch, 8), 0x1c5a3c, 0, y + ch / 2, 0], [cone(r * 0.7, ch * 0.6, 8), 0xf4f8ff, 0, y + ch * 0.705, 0]); }
-  return merge(parts); // unit pine, top at 1.075
+  return pineGeometry();
 }
 function groundTex() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 256);
