@@ -14,6 +14,10 @@ export const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2,
 export const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 export const easeBack = (t) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 
+// seeded randomness (the games build the same world for everyone on a given night)
+export function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+export const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+
 // ---------- materials & primitives ----------
 export const M = (color, o = {}) => new THREE.MeshStandardMaterial({
   color, roughness: o.r ?? 0.85, metalness: o.m ?? 0, emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1,
@@ -224,6 +228,18 @@ export function snowGround(R = 110, bump = 0.6, color = 0xc2d0ee, flat = 9) {
   geo.computeVertexNormals(); return mesh(geo, M(color, { r: 0.95 }));
 }
 export const groundY = (x, z, bump = 0.6, flat = 9) => hillH(x, z) * smooth(flat, flat + 26, Math.hypot(x, z)) * bump;
+// A tiling texture of soft blue hollows and bright drifts for a big, scrolling snowfield.
+export function groundTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 50; i++) {
+    const px = Math.random() * 256, py = Math.random() * 256, r = 12 + Math.random() * 34, col = Math.random() < 0.65 ? '110,132,200' : '255,255,255';
+    for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) {
+      const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r); g.addColorStop(0, `rgba(${col},.26)`); g.addColorStop(1, `rgba(${col},0)`);
+      x.fillStyle = g; x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 4; return t;
+}
 const PINE_KINDS = 6, _pines = {}; let _pineMat;
 export function pine(h = 3, snowy = true) {
   const g = new THREE.Group(); _pineMat ??= Object.assign(M(0xffffff, { r: 0.92 }), { vertexColors: true });

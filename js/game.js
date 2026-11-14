@@ -2,7 +2,7 @@
 // The sleigh stays near the origin; the world scrolls past it (everything in `world` sits at z = -distance).
 import {
   THREE, TAU, PX, rnd, pick, clamp, lerp, easeOut, M, G, sph, box, cyl, cone, tor, mesh, grp, prism, star3d, halo,
-  starfield, Particles, skyDome, aurora, moon, light, sleighTeam, present, GIFT, pineGeometry,
+  starfield, Particles, skyDome, aurora, moon, light, sleighTeam, present, GIFT, pineGeometry, mulberry, hash, groundTex,
 } from './kit.js';
 import { tuneName } from './audio.js';
 
@@ -17,8 +17,6 @@ const DARK = new THREE.Color(0x121a36), LIT = new THREE.Color(0xffc866).multiply
 const SPARK = [0xffd34d, 0xffffff, 0xff9a50], SNOW = [0xffffff, 0xdfe9ff, 0xbfd4ff];
 
 // ---------- helpers ----------
-function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 const _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 // Merge coloured parts [geometry, colour, x, y, z, ry] into one vertex-coloured geometry (one draw call).
 function merge(parts) {
@@ -45,17 +43,6 @@ function houseGeo(s, wall) {
   }
   wins.push([box(w * 0.14, rh * 0.25, 0.06), 0xffffff, 0, h + rh * 0.35, d / 2 + 0.3]);
   return { body, wins: merge(wins), chim: new THREE.Vector3(cx, h + rh * 1.12, cz) };
-}
-function groundTex() {
-  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 50; i++) {
-    const px = Math.random() * 256, py = Math.random() * 256, r = 12 + Math.random() * 34, col = Math.random() < 0.65 ? '110,132,200' : '255,255,255';
-    for (const ox of [-256, 0, 256]) for (const oy of [-256, 0, 256]) {
-      const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r); g.addColorStop(0, `rgba(${col},.26)`); g.addColorStop(1, `rgba(${col},0)`);
-      x.fillStyle = g; x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
-    }
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 4; return t;
 }
 // Snow hanging in the air that we fly through: wraps along z as the distance grows.
 function speedSnow(n = 1600) {
@@ -337,7 +324,7 @@ export function createGame({ dom, audio, seed = 'tonight', onExit, setPR, getPR,
   const noMenu = (e) => e.preventDefault(), onHide = () => { if (document.hidden) audio.wind(0); };
   const LISTEN = [[dom, 'pointerdown', onDown], [dom, 'pointermove', onMove], [dom, 'pointerup', onUp], [dom, 'pointercancel', onUp], [dom, 'contextmenu', noMenu], [window, 'keydown', onKey], [window, 'keyup', onKey], [document, 'visibilitychange', onHide]];
   function exit() { if (!active || exit.busy) return; exit.busy = true; onExit?.(); }
-  $('g-quit').onclick = exit; $('g-home').onclick = exit; $('g-again').onclick = () => { if (state === 'over') { reset(); begin(); } };
+  function bind() { $('g-quit').onclick = exit; $('g-home').onclick = exit; $('g-again').onclick = () => { if (state === 'over') { reset(); begin(); } }; $('g-name').textContent = 'Midnight Delivery'; $('g-again').textContent = 'Fly again'; }
 
   // the autopilot used for testing and tuning: lines up on the next sleepy chimney and drops when the ring locks
   function botStep() {
@@ -442,7 +429,7 @@ export function createGame({ dom, audio, seed = 'tonight', onExit, setPR, getPR,
   }
 
   function begin() { state = 'intro'; exit.busy = false; msg(coarse ? 'Drag to steer the sleigh' : 'Move the mouse to steer the sleigh', true); audio.bells(); }
-  function start() { if (active) return; active = true; LISTEN.forEach(([t, ev, f]) => t.addEventListener(ev, f, { passive: false })); dom.style.cursor = 'crosshair'; reset(); begin(); }
+  function start() { if (active) return; active = true; LISTEN.forEach(([t, ev, f]) => t.addEventListener(ev, f, { passive: false })); dom.style.cursor = 'crosshair'; bind(); reset(); begin(); }
   function stop() { active = false; state = 'idle'; LISTEN.forEach(([t, ev, f]) => t.removeEventListener(ev, f)); touches.clear(); for (const k in keys) keys[k] = 0; audio.wind(0); dom.style.cursor = 'default'; document.body.classList.remove('over'); }
   function resize(a) { aspect = a; camera.aspect = a; camera.updateProjectionMatrix(); }
   return {

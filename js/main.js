@@ -14,6 +14,7 @@ import { audio, tuneName } from './audio.js';
 import { smoke, faceB, face } from './days-a.js';
 import { snowman, moose, monkey, blobShadow } from './friends.js';
 import { createGame } from './game.js';
+import { createSwing } from './swing.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -105,6 +106,7 @@ const sm1 = friend(put(snowman({ scarf: 0xc8102e }), scene, -10.0, gy(-10, 6), 6
 const sm2 = friend(put(snowman({ scarf: 0x39d353, hat: 'bobble' }), scene, -8.9, gy(-8.9, 7.9), 7.9, 0.8, 0.3), '“I’m only little, but I’m very good at waiting.”', 1.2, 3);
 const lpL = put(lampPost(3.3), scene, -7.4, 0, 8.2), lpR = put(lampPost(3.3), scene, 7.4, 0, 8.2);
 const george = friend(put(monkey(), scene, -7.4, 3.84, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
+george.userData.click = () => { audio.chime(5); fxBurst(george, 40); startGame('swing'); }; // George Swings
 const mse = friend(faceB(put(moose(), scene, -13.1, gy(-13.1, 4), 4, 1.1), -4, 30), 'Monty the moose nods, slowly and wisely, as moose do. His antler lights twinkle.', 0.25, 0);
 const cow = friend(faceB(put(highlandCow(), scene, 9.6, gy(9.6, 7.4), 7.4, 1.05), -2, 30), '“Mooo!” says Hamish the Highland cow, from somewhere under his fringe.', 0.3, 2);
 mesh(tor(0.22, 0.05, 6, 14), M(0xc8102e), 0, -0.1, 0, cow.userData.neck).rotation.x = Math.PI / 2;
@@ -134,7 +136,7 @@ function status() {
   }
 }
 $('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
-$('play').onclick = () => { $('play').blur(); startGame(); };
+$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); };
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
 
 // ---------- tweens & camera ----------
@@ -183,22 +185,23 @@ function lockedDoor(d) {
   for (let i = 0; i < 26; i++) fx.emit(d.x + rnd(-0.8, 0.8), d.y + rnd(0, DH), 0.3, rnd(-0.5, 0.5), rnd(0.2, 1.4), rnd(0.3, 1.5), pick([0xffe9a0, 0xffffff, 0x9fd4ff]), rnd(0.6, 1.3), 0.9, 0.8);
 }
 
-// ---------- Midnight Delivery: the sleigh game ----------
-let game = null;
+// ---------- the games: Midnight Delivery (the sleigh) and George Swings ----------
+let game = null; const games = {}, MAKE = { delivery: createGame, swing: createSwing };
 const setPR = (p) => { PR = p; renderer.setPixelRatio(p); composer.setPixelRatio(p); resize(); };
 const dayKey = () => { const d = today(); return params.get('seed') || `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-const newGame = (o = {}) => createGame({ dom: renderer.domElement, audio, seed: dayKey(), onExit: leaveGame, setPR, getPR: () => PR, bot: params.has('bot'), adaptive: !STEPS, ...o });
-function enterGame() { game ??= newGame(); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
-async function startGame() {
+const newGame = (kind = 'delivery', o = {}) => MAKE[kind]({ dom: renderer.domElement, audio, seed: dayKey(), onExit: leaveGame, setPR, getPR: () => PR, bot: params.has('bot'), adaptive: !STEPS, ...o });
+function enterGame(kind = 'delivery') { game = games[kind] ??= newGame(kind); document.body.classList.toggle('swing', kind === 'swing'); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
+async function startGame(kind = 'delivery') {
   if (busy || view !== 'main') return; busy = true; mode = 'seq'; audio.unlock(); document.body.classList.add('focus');
-  const from = camera.position.clone(), to = from.clone().lerp(team.position, 0.3); to.y += 4; // rise towards the sleigh, then slip through a snow cloud
+  const sw = kind === 'swing', tgt = sw ? george.position.clone().setY(george.userData.y0 + 0.8) : team.position, from = camera.position.clone(), to = from.clone().lerp(tgt, sw ? 0.72 : 0.3); to.y += sw ? 0.6 : 4; // close in on George (or rise towards the sleigh), then slip through a snow cloud
+  if (sw) setTimeout(() => { george.userData.t0 = T; }, 500); // one somersault for luck
   setTimeout(() => $('mist').classList.add('on'), 1150);
-  await tween(1.6, (k) => { camPos.lerpVectors(from, to, easeIO(k)); camLook.lerpVectors(homeLook, team.position, easeIO(Math.min(1, k * 1.4))); });
-  enterGame(); $('mist').classList.remove('on');
+  await tween(1.6, (k) => { camPos.lerpVectors(from, to, easeIO(k)); camLook.lerpVectors(homeLook, tgt, easeIO(Math.min(1, k * 1.4))); });
+  enterGame(kind); $('mist').classList.remove('on');
 }
 async function leaveGame() {
   $('mist').classList.add('on'); await tween(0.5, () => {});
-  game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game'); $('mist').classList.remove('on');
+  game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game', 'swing'); $('mist').classList.remove('on');
   const from = new THREE.Vector3(0, 30, home.z + 8), fl2 = new THREE.Vector3(0, 34, -40);
   await tween(2.4, (k) => { camPos.lerpVectors(from, home, easeIO(k)); camLook.lerpVectors(fl2, homeLook, easeIO(k)); });
   mode = 'home'; busy = false; document.body.classList.remove('focus'); status();
@@ -265,12 +268,15 @@ async function start() {
   const o = +params.get('open'); if (params.has('shot')) $('veil').remove();
   const ck = +params.get('click'); if (ck) setTimeout(() => openDoor(doors.find((x) => x.n === ck)), STEPS ? 0 : 600);
   if (STEPS) (async () => { for (let i = 0; i < STEPS; i++) { if (i === +params.get("leave")) leaveDay(); tick(0.05); await new Promise((r) => setTimeout(r, 0)); } })();
-  if (params.has('game')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); enterGame(); }
+  if (params.has('game') || params.has('swing')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); enterGame(params.has('swing') ? 'swing' : 'delivery'); }
   if (o >= 1 && o <= 24) { busy = true; mode = 'seq'; document.body.classList.add('focus'); const d = doors.find((x) => x.n === o); camPos.set(d.x, d.y + 1, 7.4); camLook.set(d.x, d.y + 1, 0); enterDay(d); }
 }
 window.__test = () => { const bad = []; for (let n = 1; n <= 24; n++) { try { const d = makeDay(n); for (const t of [0.1, 2, 5, 9]) d.update(t, 0.016); renderer.render(d.scene, d.camera); d.dispose(); } catch (e) { bad.push(n + ': ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]); } } return bad.length ? bad : 'all 24 ok'; };
 // plays the game flat out with the autopilot (no rendering) and reports how the run went
-window.__gameTest = (secs = 240, o = {}) => { const g = newGame({ bot: true, adaptive: false, record: false, onExit() {}, ...o }); g.start(); let i = 0; for (; i < secs * 60 && g.stats.state !== 'over'; i++) g.update(1 / 60); const s = g.stats; g.stop(); return { ...s, frames: i }; };
+window.__gameTest = (secs = 240, o = {}) => { const g = newGame(o.kind ?? 'delivery', { bot: true, adaptive: false, record: false, onExit() {}, ...o }); g.start(); let i = 0; for (; i < secs * 60 && g.stats.state !== 'over'; i++) g.update(1 / 60); const s = g.stats; g.stop(); return { ...s, frames: i }; };
+// the same for George Swings, over several nights' forests: how far does the autopilot get in each?
+window.__swingTest = (secs = 120, seeds = 8) => Array.from({ length: seeds }, (_, i) => window.__gameTest(secs, { kind: 'swing', seed: 'test' + i }));
+window.__peek = () => game?.peek?.();
 // renders n game frames back to back and reports the average cost of one (ms), GPU included
 window.__gamePerf = (n = 120) => { const gl = renderer.getContext(), px = new Uint8Array(4), t0 = performance.now(); for (let i = 0; i < n; i++) { game.update(1 / 60); composer.render(); } gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const ms = (performance.now() - t0) / n; renderer.render(game.scene, game.camera); return { ms: +ms.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr: PR, w: innerWidth, h: innerHeight, stats: game.stats }; };
 start().then(() => {

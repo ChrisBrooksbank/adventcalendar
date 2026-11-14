@@ -95,5 +95,14 @@ export const audio = {
   },
   twinkle(i = 0) { if (!enabled || !init()) return; const sc = [0, 2, 4, 7, 9, 12, 14, 16]; note(86 + sc[Math.abs(i) % sc.length], 0, 0.5, 0.06); },
   fanfare() { if (!enabled || !init()) return; [0, 4, 7, 12, 16, 19, 24].forEach((s, i) => note(72 + s, 0.25 + i * 0.09, 1.6, 0.11)); },
+  // --- George Swings ---
+  boing(big) { // a springy bounce off a hat (or, bigger, off Monty's antlers)
+    if (!enabled || !init()) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f0 = big ? 110 : 170, len = big ? 0.5 : 0.32; o.type = 'triangle';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 3.2, t + len * 0.55); o.frequency.exponentialRampToValueAtTime(f0 * 2.4, t + len);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.32, t + 0.015); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + len + 0.05); if (big) [0, 7, 12, 19].forEach((s, i) => note(84 + s, 0.04 + i * 0.05, 0.7, 0.05));
+  },
+  creak() { if (!enabled || !init()) return; puff('bandpass', 2600, 3800, 9, 0.22, 0.16); for (let i = 0; i < 4; i++) note(103 + ((i * 7) % 5), i * 0.05 + Math.random() * 0.02, 0.12, 0.03); },
+  snap() { if (!enabled || !init()) return; puff('highpass', 3000, 900, 0.7, 0.16, 0.3); note(108, 0, 0.25, 0.08); note(101, 0.03, 0.3, 0.06); },
   bells() { if (!enabled || !init()) return; for (let i = 0; i < 6; i++) { note(96, i * 0.16, 0.25, 0.05); note(103, i * 0.16 + 0.02, 0.2, 0.04); } },
 };

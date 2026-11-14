@@ -181,17 +181,18 @@ export function monkey() {
     mesh(cap(0.021, 0.04), skin, -sx * 0.075, -0.02, 0.01, h).rotation.z = -sx * 0.9; return a;
   });
   // legs stuck out in front, soles to the world
-  for (const sx of [-1, 1]) {
+  const legs = [-1, 1].map((sx) => {
     const l = grp(body, sx * 0.15, 0.33, 0.08); l.rotation.set(-1.25, 0, sx * 0.35); mesh(cap(0.068, 0.24), fur, 0, -0.17, 0, l);
     const f = grp(l, 0, -0.38, 0.035); mesh(sph(0.085, 16, 12), skin, 0, 0, 0, f).scale.set(1, 0.7, 1.55);
     for (let i = 0; i < 4; i++) mesh(sph(0.028, 8, 6), skin, (i - 1.5) * 0.042, 0, 0.125 - Math.abs(i - 1.5) * 0.014, f);
-  }
+    return l;
+  });
   // a long tail with a curl in it
   const tail = grp(body, 0, 0.34, -0.22);
   mesh(taperTube([[0, 0, 0], [0, -0.06, -0.16], [0, 0.02, -0.34], [0, 0.24, -0.42], [0, 0.44, -0.33], [0, 0.47, -0.15], [0, 0.36, -0.08], [0, 0.3, -0.17]], 0.044, 0.027, 40, 10), fur, 0, 0, 0, tail);
   mesh(sph(0.027, 8, 6), fur, 0, 0.3, -0.17, tail);
   const blink = blinker(eyes);
-  g.userData = { head, armL: arms[0], armR: arms[1], body, tail, hat, tick: blink };
+  g.userData = { head, armL: arms[0], armR: arms[1], legs, body, tail, hat, tick: blink };
   g.userData.wave = (t) => { arms[1].rotation.z = 2.5 + Math.sin(t * 7) * 0.4; head.rotation.z = Math.sin(t * 2) * 0.15; tail.rotation.x = Math.sin(t * 3) * 0.16; hat.rotation.z = 0.3 + Math.sin(t * 2 + 1) * 0.07; };
   return g;
 }
