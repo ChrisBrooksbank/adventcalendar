@@ -11,11 +11,15 @@ setDetail(Q.tier === 2 ? 1.5 : 1);
 let R = null; export const initLook = (renderer) => {
   R = renderer; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 };
-// Watch a day scene's frame rate for its first seconds and step down a tier if it can't keep up.
-export function watchFrames(dt, onDrop) {
-  if (Q.fixed || Q.tier === 0) return; Q.acc = (Q.acc ?? 0) + Math.min(dt, 0.1); Q.n = (Q.n ?? 0) + 1;
-  if (Q.acc > 2.5) { const avg = Q.acc / Q.n; Q.acc = Q.n = 0; if (avg > 1 / 38) { Q.tier--; onDrop?.(Q.tier); } }
+// Watch a day scene's real frame times and step down a tier if it can't keep up. Frames slower than a quarter of a
+// second are a hidden or throttled tab (or a one-off hitch), not a slow device, so they are ignored; and the drop
+// only takes effect once back at the house (main applies it), never in the middle of an open scene.
+export function watchFrames(raw, onDrop) {
+  if (Q.fixed || Q.tier === 0 || Q.pending || document.hidden || !(raw > 0) || raw > 0.25) return;
+  Q.acc = (Q.acc ?? 0) + raw; Q.n = (Q.n ?? 0) + 1;
+  if (Q.acc > 4) { const avg = Q.acc / Q.n; Q.acc = Q.n = 0; if (avg > 1 / 32) { Q.pending = true; onDrop?.(); } }
 }
+export function applyPendingDrop() { if (!Q.pending) return false; Q.pending = false; Q.tier = Math.max(0, Q.tier - 1); return true; }
 export const resetWatch = () => { Q.acc = Q.n = 0; };
 
 // ---------- environment light for reflections ----------
@@ -48,7 +52,7 @@ export function enhanceDay(day) {
     }
   });
   // big out-of-focus flakes drifting just in front of the lens
-  if (def.snow !== 0 && tier > 0) camera.add(bokehSnow(tier === 2 ? 70 : 40));
+  if (def.snow !== 0 && tier > 0) camera.add(bokehSnow(tier === 2 ? 34 : 20));
   day.grade = gradeFor(def);
 }
 function bokehSnow(n) {
@@ -59,7 +63,7 @@ function bokehSnow(n) {
     uniforms: { uTime: U.time, uPx: PX }, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
     vertexShader: `attribute float aSeed; uniform float uTime,uPx; varying float vA;
       void main(){ vec3 p=position; float sp=.18+aSeed*.25; p.y=mod(p.y+1.6-uTime*sp,3.2)-1.6; p.x+=sin(uTime*.3+aSeed*30.)*.25;
-      vec4 mv=modelViewMatrix*vec4(p,1.); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(80.+aSeed*150.)/-mv.z; vA=.025+.04*aSeed; }`,
+      vec4 mv=modelViewMatrix*vec4(p,1.); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(80.+aSeed*150.)/-mv.z; vA=.018+.03*aSeed; }`,
     fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5); float a=smoothstep(.5,.38,d)*(.75+.25*smoothstep(.2,.45,d)); gl_FragColor=vec4(vec3(.85,.9,1.)*a*vA,1.); }`,
   });
   const p = new THREE.Points(geo, mat); p.frustumCulled = false; p.renderOrder = 10; return p;

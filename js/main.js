@@ -20,7 +20,7 @@ import { createCarol } from './carol.js';
 import { validate as validateSongs } from './songs.js';
 import { createBand, glockenspiel } from './band.js';
 import { HURON } from './tunes.js';
-import { Q, initLook, GradeShader, HOME_GRADE, applyGrade, tierUniforms, portalRig, captureLoop, windowMaterial, watchFrames, resetWatch, LW } from './look.js';
+import { Q, initLook, GradeShader, HOME_GRADE, applyGrade, tierUniforms, portalRig, captureLoop, windowMaterial, watchFrames, resetWatch, applyPendingDrop, LW } from './look.js';
 import { createSky, streak, RIDDLES } from './stars.js';
 
 // ---------- date & saved state ----------
@@ -244,7 +244,7 @@ async function leaveDay() {
   const wp = new THREE.Vector3(d.x, d.y + DH / 2, 0.1), from = new THREE.Vector3(d.x, wp.y, zEnd); camPos.copy(from); camLook.set(d.x, wp.y, -10); camera.position.copy(camPos); camera.lookAt(camLook);
   const l0 = camLook.clone(); flash = 0.2;
   await tween(2.4, (k) => { const e = easeIO(k); camPos.lerpVectors(from, home, e); camLook.lerpVectors(l0, homeLook, easeIO(Math.min(1, k * 1.3))); letter = 0.6 * (1 - k); });
-  portal = null; setWindow(d, day); day.dispose(); cur = null; gradeK = 0; letter = 0;
+  portal = null; setWindow(d, day); day.dispose(); cur = null; gradeK = 0; letter = 0; onTierDrop();
   mode = 'home'; busy = false; document.body.classList.remove('focus'); status();
   if (day.justFound) flyHome(d, day.n);
   if (day.n === 24 && found.has(24) && !finaleDone && isDec()) setTimeout(() => finale(), 2600);
@@ -390,7 +390,8 @@ function updateMain(dt) {
   else { camera.position.copy(camPos); camera.lookAt(camLook); }
   if (T - lastStatus > 1) { lastStatus = T; status(); }
 }
-function frame() { requestAnimationFrame(frame); if (!STEPS) tick(Math.min(clock.getDelta(), 0.05)); else composer.render(); }
+let rawDt = 0;
+function frame() { requestAnimationFrame(frame); if (!STEPS) { rawDt = clock.getDelta(); tick(Math.min(rawDt, 0.05)); } else composer.render(); }
 function tick(dt) {
   T += dt;
   for (let i = tweens.length - 1; i >= 0; i--) { const tw = tweens[i]; tw.t += dt; const k = clamp(tw.t / tw.dur); tw.fn(k); if (k >= 1) { tweens.splice(i, 1); tw.res(); } }
@@ -398,7 +399,7 @@ function tick(dt) {
   if (view === 'main') { updateMain(dt); if (portal) { portal.day.t += dt; portal.day.update(portal.day.t, dt); renderPortal(); } }
   else if (view === 'game') game.update(dt);
   else if (view === 'peek' && peek) { peek.day.t += dt; peek.day.update(peek.day.t, dt, mx * 0.5, my * 0.5); }
-  else if (cur) { cur.t += dt; cur.update(cur.t, dt, mx, my); if (!STEPS) watchFrames(dt, onTierDrop); }
+  else if (cur) { cur.t += dt; cur.update(cur.t, dt, mx, my); if (!STEPS) watchFrames(rawDt, null); }
   look();
   composer.render();
 }
@@ -423,8 +424,8 @@ function look() {
   letter = view === 'day' && cur && !cur.leaving ? Math.max(0, letter - 1 / 110) : letter; GU.uLetter.value = easeIO(clamp(letter));
   flash = Math.max(0, flash - 1 / 40); GU.uFlash.value = flash * flash;
 }
-function onTierDrop(tier) { // this device needs a lighter touch: soften the pixel ratio and the post effects, and drop the shadows at the bottom
-  tierUniforms(GU); if (PR > 1) setPR(Math.max(1, PR - 0.5)); if (tier === 0 && cur) cur.dir.castShadow = false;
+function onTierDrop() { // this device needs a lighter touch: soften the pixel ratio and the post effects (applied back at the house)
+  if (!applyPendingDrop()) return; tierUniforms(GU); if (PR > 1) setPR(Math.max(1, PR - 0.5));
 }
 
 // ---------- start ----------
