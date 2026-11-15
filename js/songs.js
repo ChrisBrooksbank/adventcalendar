@@ -38,6 +38,7 @@ const faith = '0 | 0:2 -5 0 | 2:2 -5:2 | 4 2 4 5 | 4:2 2 0 | 0:2 -1 -3 | -1 0 2 
 const gsA = '3:2 5 | 7:1.5 9:.5 7 | 5:2 2 | -2:1.5 0:.5 2', gsE1 = '3:2 0 | 0:1.5 -1:.5 0 | 2:2 -1', gsE2 = '3:1.5 2:.5 0 | -1:1.5 -3:.5 -1 | 0:3';
 const hark = '-5 0 0:1.5 -1:.5 | 0 4 4 2', harkE = '2 4:.5 5:.5 7:1.5 0:.5';
 const mangerA = '7 | 7:1.5 5:.5 4 | 4:1.5 2:.5 0 | 0 -1 -3 | -5:2 -5';
+const huronA = '-5 | 0 2 3 5 | 3 2 0 -2', huronB = '0 | 7 7 2 3 | 5:1.5 3:.5 2 2 | 3 2 0 0 | 2:1.5 0:.5 0 -2 | -5 0 0:2 | -2 -4 -5:2 | 0:2 -2 -5 | 0:2 0 2 | 3 5 7 -5 | 0:3';
 const silentA = '7:1.5 9:.5 7 | 4:3', silentB = '9:2 9 | 12:1.5 11:.5 9 | 7:1.5 9:.5 7 | 4:3';
 
 // [beats in a bar, pickup beats, minor?, seconds per beat, tonic (midi), times through, melody]
@@ -67,6 +68,8 @@ export const SONGS = [
   [3, 1, 0, 0.44, 72, 2, P(mangerA, '| -5:1.5 -3:.5 -5 | -5 2 -1 | -3 -5 0 | 4:2', mangerA, '| 5:1.5 4:.5 2 | 4 2 0 | 2 -3 -1 | 0:2')],
   [3, 0, 0, 0.46, 65, 1, J(silentA, silentA, '14:2 14 | 11:3 | 12:2 12 | 7:3', silentB, silentB, '14:2 14 | 17:1.5 14:.5 11 | 12:3 | 16:3 | 12 7 4 | 7:1.5 5:.5 2 | 0:3 | r:3')],
 ];
+
+SONGS.push([4, 1, 1, 0.44, 69, 2, P(huronA, '| 0 0 2 -2 | 0:3', huronA, '| 0 3 2 -2 | 0:3', huronB)]); // The Huron Carol (HURON in tunes.js)
 
 const tok = (s) => { const [a, b] = s.split(':'); return [a === 'r' ? null : +a, b === undefined ? 1 : +b]; };
 const CHORDS = [

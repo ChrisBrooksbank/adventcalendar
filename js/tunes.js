@@ -26,5 +26,7 @@ export const TUNES = [
   ['Away in a Manger', 72, 0.44, '7:1 7:1.5 5:.5 4:1 4:1.5 2:.5 0:1 0:1 -1:1 -3:1 -5:3'],
   ['Silent Night', 65, 0.46, '7:1.5 9:.5 7:1 4:3 7:1.5 9:.5 7:1 4:3 14:2 14:1 11:3 12:2 12:1 7:3'],
 ];
-export const tuneName = (n) => TUNES[n - 1][0];
+// One more with no door of its own: Canada's oldest carol, always on the programme at the friends' concert (see band.js).
+export const HURON = TUNES.push(['The Huron Carol', 69, 0.44, '-5:1 0:1 2:1 3:1 5:1 3:1 2:1 0:1 -2:1 0:1 0:1 2:1 -2:1 0:3']);
+export const tuneName =(n) => TUNES[n - 1][0];
 export const MELODY = TUNES.map(([, base, , seq]) => seq.split(' ').map((s) => base + +s.split(':')[0])); // each phrase as plain midi notes

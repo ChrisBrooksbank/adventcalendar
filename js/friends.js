@@ -264,3 +264,35 @@ export function moose() {
   }
   g.userData = { legs, neck, head, nose, body, nk, tick: blinker(eyes) }; return g;
 }
+
+// ---------- Maple ----------
+// Maple the beaver, who only comes out for the friends' concert: plump and plush, two proud orange teeth,
+// a red knitted toque and a broad flat tail for slapping time. Sits up, facing +z.
+export function beaver() {
+  const g = new THREE.Group(), body = grp(g), fur = soft(0x7d4c28, { rim: 0xffc08a, ri: 0.24 }), furD = soft(0x5c3518, { rim: 0xffc08a, ri: 0.18 });
+  const pale = soft(0xc79a68, { r: 0.8, rim: 0xfff0dc, ri: 0.18 }), dark = M(0x2a1a12, { r: 0.5 }), white = soft(0xffffff, { rim: 0xbfd4ff, ri: 0.32 });
+  mesh(sph(0.3, 26, 20), fur, 0, 0.4, 0, body).scale.set(1.05, 1.2, 0.98); mesh(sph(0.2, 20, 16), pale, 0, 0.4, 0.17, body).scale.set(1, 1.3, 0.7);
+  // head: round cheeks, a wide muzzle and the famous teeth
+  const head = grp(body, 0, 0.88, 0.03); mesh(sph(0.25, 28, 20), fur, 0, 0, 0, head).scale.set(1.1, 0.95, 1);
+  mesh(sph(0.14, 20, 14), pale, 0, -0.07, 0.16, head).scale.set(1.3, 0.8, 0.85); mesh(sph(0.05, 12, 10), dark, 0, -0.01, 0.275, head).scale.set(1.35, 0.8, 0.7);
+  for (const sx of [-1, 1]) {
+    mesh(box(0.042, 0.085, 0.02), M(0xf5a53c, { r: 0.35 }), sx * 0.023, -0.165, 0.245, head);
+    mesh(sph(0.065, 12, 10), furD, sx * 0.2, 0.17, -0.02, head).scale.z = 0.5; mesh(sph(0.04, 10, 8), pale, sx * 0.2, 0.165, 0.005, head).scale.z = 0.4;
+    const c = mesh(sph(0.045, 10, 8), M(0xff8a8a, { r: 1, o: 0.42 }), sx * 0.165, -0.06, 0.2, head); c.scale.set(1, 0.7, 0.25); c.rotation.y = sx * 0.7;
+    tuft(head, fur, sx * 0.22, -0.08, 0.04, sx, -0.5, 0.2, 0.1, 0.055);
+  }
+  const eyes = [-1, 1].map((sx) => eye(head, sx * 0.1, 0.06, 0.215, 0.036, { color: 0x1c0d06 }));
+  // a red toque with a white turn-up and a pompom
+  const hat = grp(head, 0, 0.13, 0); hat.rotation.z = -0.12;
+  mesh(new THREE.SphereGeometry(0.245, 26, 12, 0, TAU, 0, Math.PI / 2), knit(0xc8102e, 0xffffff, false, 6, 3), 0, 0, 0, hat).scale.y = 1.15;
+  const brim = mesh(tor(0.24, 0.055, 10, 30), white, 0, 0.01, 0, hat); brim.rotation.x = Math.PI / 2; fluff(hat, 0, 0.31, 0, 0.09, white);
+  // short arms, big feet and the tail
+  const arms = [-1, 1].map((sx) => {
+    const a = grp(body, sx * 0.27, 0.62, 0.05); a.rotation.z = sx * 0.3; mesh(new THREE.CapsuleGeometry(0.055, 0.17, 6, 12), fur, 0, -0.12, 0, a);
+    mesh(sph(0.06, 12, 10), dark, 0, -0.27, 0, a); return a;
+  });
+  for (const sx of [-1, 1]) mesh(sph(0.1, 14, 10), dark, sx * 0.17, 0.05, 0.17, body).scale.set(1, 0.45, 1.6);
+  const tail = grp(g, 0, 0.1, -0.22), pad = mesh(sph(0.2, 18, 12), M(0x33241c, { r: 0.7 }), 0, 0, -0.34, tail); pad.scale.set(1, 0.16, 1.9);
+  for (let i = 0; i < 5; i++) mesh(box(0.3 - Math.abs(i - 2) * 0.05, 0.012, 0.014), M(0x1c120c, { r: 0.8 }), 0, 0.034, -0.1 - i * 0.12, tail);
+  g.userData = { head, body, hat, tail, armL: arms[0], armR: arms[1], tick: blinker(eyes) }; return g;
+}

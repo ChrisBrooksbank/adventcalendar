@@ -185,6 +185,14 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
     // --- Carol of the Doors ---
     play(midi, when = 0, len = 1.4, vol = 0.22, voice = 'box') { strike(voice, midi, when, len, vol); },
     bells() { for (let i = 0; i < 6; i++) sleigh(i * 0.16, i % 2 ? 0.05 : 0.07, i % 2 ? 0.3 : -0.3); },
+    // --- The Friends' Concert: the rhythm section, each scheduled `when` seconds ahead ---
+    shake(when = 0, vol = 0.03, pan = -0.45) { sleigh(when, vol, pan); },
+    cowbell(when = 0, vol = 0.05, pan = 0.45) { for (const [f, a] of [[587, 1], [845, 0.7]]) tone({ type: 'square', f0: f, len: 0.26, vol: vol * a, attack: 0.002, pan, flt: ['bandpass', 800, 1.2], when: Math.max(0, when) }); },
+    drum(when = 0, midi = 48, vol = 0.16, pan = 0.3) { // a hollow log: a pitched thump under a woody knock
+      const f = hz(midi), w = Math.max(0, when); tone({ f0: f * 1.5, f1: f, len: 0.24, vol, attack: 0.003, pan, when: w });
+      burst({ f0: 1100, q: 3, len: 0.05, vol: vol * 0.5, attack: 0.05, pan, when: w });
+    },
+    click(when = 0, vol = 0.1) { const w = Math.max(0, when); burst({ f0: 2600, q: 5, len: 0.045, vol, attack: 0.03, when: w }); tone({ type: 'triangle', f0: 1900, f1: 1500, len: 0.04, vol: vol * 0.5, attack: 0.001, when: w }); }, // two mallets knocked together
   };
 }
 const TRIM = 1.5, SLEIGH = 11, WIND = 0.065; // levels, set by measuring in sound-test.html
@@ -203,5 +211,6 @@ export const audio = {
   tuneLen: (n) => MELODY[n - 1].length,
   now() { return enabled && ctx && ctx.state === 'running' ? ctx.currentTime : null; }, // the audio clock, when there is one to keep time by
   wind(level) { if (init()) eng.wind(enabled ? level : 0); },
+  latency() { return ctx ? Math.min(0.3, ctx.outputLatency || ctx.baseLatency || 0) : 0; }, // how long after the audio clock a sound is actually heard
 };
-for (const k of ['tune', 'chime', 'locked', 'magic', 'tuneNote', 'jingle', 'pff', 'whoosh', 'thud', 'twinkle', 'fanfare', 'boing', 'creak', 'snap', 'play', 'bells']) audio[k] = (...a) => { if (enabled && init()) eng[k](...a); };
+for (const k of ['tune', 'chime', 'locked', 'magic', 'tuneNote', 'jingle', 'pff', 'whoosh', 'thud', 'twinkle', 'fanfare', 'boing', 'creak', 'snap', 'play', 'bells', 'shake', 'cowbell', 'drum', 'click']) audio[k] = (...a) => { if (enabled && init()) eng[k](...a); };

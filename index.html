@@ -42,10 +42,13 @@
   .pill { pointer-events: auto; padding: 9px 22px; border-radius: 999px; border: 1px solid rgba(255, 226, 160, .6); background: rgba(8, 14, 44, .6); color: var(--gold); font: 500 clamp(16px, 2.2vh, 20px) "Cormorant Garamond", serif; cursor: pointer; backdrop-filter: blur(6px); }
   .pill:hover, #g-quit:hover { background: rgba(255, 226, 160, .28); }
   .pill:focus-visible, #g-quit:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-  #play, #swing, #carol { margin: 10px 4px 0; animation: glow 3.2s ease-in-out infinite; } #swing { animation-delay: -1.6s; } #carol { animation-delay: -0.8s; }
+  #play, #swing, #carol, #band { margin: 10px 4px 0; animation: glow 3.2s ease-in-out infinite; } #swing { animation-delay: -1.6s; } #carol { animation-delay: -0.8s; } #band { animation-delay: -2.4s; }
   @keyframes glow { 50% { box-shadow: 0 0 22px rgba(255, 200, 100, .55); } }
-  body.focus #play, body.focus #swing, body.focus #carol { pointer-events: none; }
-  body.swing #g-magic, body.carol #g-magic { display: none; }
+  body.focus #play, body.focus #swing, body.focus #carol, body.focus #band { pointer-events: none; }
+  body.swing #g-magic, body.carol #g-magic, body.band #g-magic { display: none; }
+  /* ---------- The Friends' Concert ---------- */
+  body.band #g-score { font-size: clamp(26px, 4.4vh, 44px); } body.band #g-tune { white-space: normal; text-wrap: balance; }
+  #b-bar { position: absolute; left: 0; right: 0; bottom: clamp(12px, 3vh, 30px); display: none; justify-content: center; } body.band #b-bar { display: flex; }
   /* ---------- Carol of the Doors ---------- */
   body.carol.pick #g-score { font-size: clamp(26px, 4.4vh, 44px); } body.carol #g-tune { white-space: normal; text-wrap: balance; }
   #c-bar { position: absolute; left: 0; right: 0; bottom: clamp(12px, 3vh, 30px); display: none; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -82,7 +85,7 @@
   #g-card .row { margin-top: 18px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   #g-card .pill { pointer-events: none; } body.game.over #g-card .pill { pointer-events: auto; }
   #g-again { background: rgba(255, 226, 160, .22); }
-  @media (prefers-reduced-motion: reduce) { #play, #swing, #carol, #g-magic.low { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #play, #swing, #carol, #band, #g-magic.low { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .ui, #fade, #veil { transition-duration: .01s; } }
 </style>
 <script type="importmap">
@@ -93,7 +96,7 @@
 <div id="stage"></div>
 <div id="fade"></div>
 <div id="mist"></div>
-<header class="ui"><h1>The Advent House</h1><div id="status"></div><div><button id="play" class="pill">✦ Fly the sleigh</button><button id="swing" class="pill">✦ George swings</button><button id="carol" class="pill">✦ Carol of the doors</button></div></header>
+<header class="ui"><h1>The Advent House</h1><div id="status"></div><div><button id="play" class="pill">✦ Fly the sleigh</button><button id="swing" class="pill">✦ George swings</button><button id="carol" class="pill">✦ Carol of the doors</button><button id="band" class="pill">✦ The friends’ concert</button></div></header>
 <button id="sound" class="ui" title="Sound on / off" aria-label="Toggle sound">♪</button>
 <div id="toast" class="ui" role="status"></div>
 <div id="cap" class="ui">
@@ -112,6 +115,7 @@
   </div>
   <div id="g-msg" role="status"></div>
   <div id="g-pops"><span></span><span></span><span></span><span></span><span></span></div>
+  <div id="b-bar"><button id="b-next" class="pill">♪ Another carol</button></div>
   <div id="c-bar"><button id="c-diff" class="pill">Notes: gentle ♪</button><button id="c-free" class="pill">Free play</button></div>
 </div>
 <div id="g-card" class="ui">
