@@ -104,5 +104,8 @@ export const audio = {
   },
   creak() { if (!enabled || !init()) return; puff('bandpass', 2600, 3800, 9, 0.22, 0.16); for (let i = 0; i < 4; i++) note(103 + ((i * 7) % 5), i * 0.05 + Math.random() * 0.02, 0.12, 0.03); },
   snap() { if (!enabled || !init()) return; puff('highpass', 3000, 900, 0.7, 0.16, 0.3); note(108, 0, 0.25, 0.08); note(101, 0.03, 0.3, 0.06); },
+  // --- Carol of the Doors ---
+  now() { return enabled && ctx && ctx.state === 'running' ? ctx.currentTime : null; }, // the audio clock, when there is one to keep time by
+  play(midi, when = 0, len = 1.4, vol = 0.22) { if (!enabled || !init()) return; note(midi, Math.max(0, when), len, vol); },
   bells() { if (!enabled || !init()) return; for (let i = 0; i < 6; i++) { note(96, i * 0.16, 0.25, 0.05); note(103, i * 0.16 + 0.02, 0.2, 0.04); } },
 };

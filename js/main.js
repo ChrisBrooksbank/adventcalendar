@@ -15,6 +15,8 @@ import { smoke, faceB, face } from './days-a.js';
 import { snowman, moose, monkey, blobShadow } from './friends.js';
 import { createGame } from './game.js';
 import { createSwing } from './swing.js';
+import { createCarol } from './carol.js';
+import { validate as validateSongs } from './songs.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -26,6 +28,9 @@ const isDec = () => today().getMonth() === 11;
 const canOpen = (n) => isDec() && n <= today().getDate();
 const KEY = `advent-${today().getFullYear()}${pd ? '-preview' : ''}`;
 let opened = new Set(); try { opened = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch { /* storage unavailable */ }
+let lastYear = new Set(); try { lastYear = new Set(JSON.parse(localStorage.getItem(`advent-${today().getFullYear() - 1}`) || '[]')); } catch { /* storage unavailable */ }
+// Carol of the Doors: a door's carol is yours once you have opened it (last December's stay until the next one begins); two are always there to try
+const carolOpen = (n) => n === 3 || n === 20 || params.has('allcarols') || (opened.has(n) && canOpen(n)) || (!isDec() && lastYear.has(n));
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...opened])); } catch { /* ignore */ } };
 
 // ---------- renderer ----------
@@ -42,7 +47,7 @@ composer.addPass(rp); composer.addPass(bloom); composer.addPass(new OutputPass()
 const gy = (x, z) => groundY(x, z, 0.7);
 scene.add(skyDome(0x050a26, 0x24407e)); scene.fog = new THREE.FogExp2(0x1c3068, 0.0065);
 scene.add(new THREE.HemisphereLight(0x9fb4ff, 0x39486e, 1.2)); const dl = new THREE.DirectionalLight(0xc4d4ff, 1.0); dl.position.set(-10, 16, 12); scene.add(dl);
-scene.add(snowGround(160, 0.7), starfield(1500), snowfall(3200, 42, 30), aurora(150, 44, 70, 0x35ffb0, 0x9050ff, 0.8, 2.8)); moon(6, -34, 36, -110, scene);
+scene.add(snowGround(160, 0.7), starfield(1500), snowfall(3200, 42, 30)); const aur = aurora(150, 44, 70, 0x35ffb0, 0x9050ff, 0.8, 2.8); scene.add(aur); moon(6, -34, 36, -110, scene);
 forest(scene, 90, 13, 70, 0.7, (x, z) => !(z > 3 && Math.abs(x) < z * 0.8 + 17) && !(Math.abs(x) < 11 && z < 2 && z > -7));
 const fx = new Particles(4000); scene.add(fx.points);
 const pickables = [], WHITE = M(0xf4f8ff, { r: 0.95 }), GOLD = M(0xffd34d, { m: 0.85, r: 0.25, e: 0x6a4800 });
@@ -60,9 +65,9 @@ for (const sx of [-1, 1]) {
 }
 const smokes = [smoke(scene, -5.5, 16.8, -2.2), smoke(scene, 5.5, 16.8, -2.2)];
 const LC = [0xff3b30, 0xffd34d, 0x39d353, 0x3aa0ff, 0xff7ad9, 0xffffff], fl = [];
-for (let i = 0; i < 60; i++) { const f = i / 59, x = -9.6 + f * 19.2; fl.push([x, 12.05 - Math.abs(Math.sin(f * Math.PI * 12)) * 0.25, 0.95, LC[i % 6]]); }
-for (let i = 0; i < 64; i++) { const f = i / 63, x = -9.5 + f * 19, y = 12.15 + (1 - Math.abs(f - 0.5) * 2) * 5.35; fl.push([x, y, 0.9, LC[(i + 2) % 6]]); }
-scene.add(twinkles(fl, 2.1, 2.2, 0.45));
+for (let i = 0; i < 60; i++) { const f = i / 59, x = -9.6 + f * 19.2; fl.push([x, 12.05 - Math.abs(Math.sin(f * Math.PI * 12)) * 0.25, 0.95, LC[i % 6], 0.02 + 0.43 * Math.abs(f * 2 - 1)]); }
+for (let i = 0; i < 64; i++) { const f = i / 63, x = -9.5 + f * 19, y = 12.15 + (1 - Math.abs(f - 0.5) * 2) * 5.35; fl.push([x, y, 0.9, LC[(i + 2) % 6], 0.5 + 0.45 * (1 - Math.abs(f * 2 - 1))]); }
+const roofTw = twinkles(fl, 2.1, 2.2, 0.45); scene.add(roofTw); // each light also carries an order, so Carol of the Doors can light the roofline up along its length
 
 // doors
 const LAYOUT = [[10, 18, 4, 24, 7, 15], [2, 12, 17, 6, 21, 13], [16, 5, 23, 1, 9, 20], [8, 19, 3, 14, 22, 11]];
@@ -120,6 +125,7 @@ nat.userData.click = () => { toast('Away in a manger, no crib for a bed…'); au
 // Father Christmas in the sky
 const team = sleighTeam(3); team.scale.setScalar(1.1); scene.add(team); mesh(sph(4.5), new THREE.MeshBasicMaterial({ visible: false }), 0, 1, 2.5, team);
 team.userData.click = () => { audio.bells(); const p = team.position; fx.burst(p.x, p.y, p.z, 150, 7, [0xffd34d, 0xff5040, 0xffffff], 2, 1.6, 1.5); startGame(); }; pickables.push(team);
+roofStar.userData.click = () => { audio.chime(6); fxBurst(roofStar, 60); startGame('carol'); }; pickables.push(roofStar); mesh(sph(1.3), new THREE.MeshBasicMaterial({ visible: false }), 0, 0, 0, roofStar); // Carol of the Doors
 const SP = (a, v) => v.set(46 * Math.sin(a), 21 + 5 * Math.sin(a * 2 + 0.6), -34 + 22 * Math.cos(a)), v1 = new THREE.Vector3(), v2 = new THREE.Vector3();
 const shoots = []; function shoot() { shoots.push({ x: rnd(-40, 40), y: rnd(26, 40), z: -60, vx: rnd(-22, 22), vy: rnd(-9, -4), life: rnd(0.8, 1.5) }); }
 
@@ -136,7 +142,7 @@ function status() {
   }
 }
 $('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
-$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); };
+$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); }; $('carol').onclick = () => { $('carol').blur(); startGame('carol'); };
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
 
 // ---------- tweens & camera ----------
@@ -169,7 +175,7 @@ async function openDoor(d) {
 }
 function enterDay(d) {
   const def = DAYS[d.n - 1]; cur = makeDay(d.n, innerWidth / innerHeight); cur.t = +params.get('t') || 0; cur.door = d; view = 'day'; rp.scene = cur.scene; rp.camera = cur.camera;
-  $('num').textContent = d.n; $('title').textContent = def.t; $('text').textContent = def.s; $('tune').textContent = '♪ ' + tuneName(d.n);
+  $('num').textContent = d.n; $('title').textContent = def.t; $('text').textContent = def.s; $('tune').textContent = '♪ ' + tuneName(d.n) + ' · yours to play in Carol of the Doors';
   document.body.classList.add('day'); $('fade').classList.remove('on'); audio.tune(d.n);
 }
 async function leaveDay() {
@@ -185,14 +191,16 @@ function lockedDoor(d) {
   for (let i = 0; i < 26; i++) fx.emit(d.x + rnd(-0.8, 0.8), d.y + rnd(0, DH), 0.3, rnd(-0.5, 0.5), rnd(0.2, 1.4), rnd(0.3, 1.5), pick([0xffe9a0, 0xffffff, 0x9fd4ff]), rnd(0.6, 1.3), 0.9, 0.8);
 }
 
-// ---------- the games: Midnight Delivery (the sleigh) and George Swings ----------
-let game = null; const games = {}, MAKE = { delivery: createGame, swing: createSwing };
+// ---------- the games: Midnight Delivery (the sleigh), George Swings and Carol of the Doors (played on the house itself) ----------
+const host = { scene, camera, camPos, camLook, doors, fx, shoot, friends: [sm1, sm2, george, mse, cow], roof: roofTw.userData.u, roofSize: 2.1, aur: aur.material.uniforms, aurGain: 0.8, unlocked: carolOpen, time: () => T, world: (dt) => updateMain(dt) };
+let game = null; const games = {}, MAKE = { delivery: createGame, swing: createSwing, carol: (o) => createCarol({ song: +params.get('carol') || 0, diff: params.has('full') ? 1 : undefined, ...o, host }) };
 const setPR = (p) => { PR = p; renderer.setPixelRatio(p); composer.setPixelRatio(p); resize(); };
 const dayKey = () => { const d = today(); return params.get('seed') || `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const newGame = (kind = 'delivery', o = {}) => MAKE[kind]({ dom: renderer.domElement, audio, seed: dayKey(), onExit: leaveGame, setPR, getPR: () => PR, bot: params.has('bot'), adaptive: !STEPS, ...o });
-function enterGame(kind = 'delivery') { game = games[kind] ??= newGame(kind); document.body.classList.toggle('swing', kind === 'swing'); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
+function enterGame(kind = 'delivery') { game = games[kind] ??= newGame(kind); document.body.classList.toggle('swing', kind === 'swing'); document.body.classList.toggle('carol', kind === 'carol'); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
 async function startGame(kind = 'delivery') {
   if (busy || view !== 'main') return; busy = true; mode = 'seq'; audio.unlock(); document.body.classList.add('focus');
+  if (kind === 'carol') { camPos.copy(camera.position); camLook.copy(homeLook); return enterGame(kind); } // no journey: the camera just settles on the house front
   const sw = kind === 'swing', tgt = sw ? george.position.clone().setY(george.userData.y0 + 0.8) : team.position, from = camera.position.clone(), to = from.clone().lerp(tgt, sw ? 0.72 : 0.3); to.y += sw ? 0.6 : 4; // close in on George (or rise towards the sleigh), then slip through a snow cloud
   if (sw) setTimeout(() => { george.userData.t0 = T; }, 500); // one somersault for luck
   setTimeout(() => $('mist').classList.add('on'), 1150);
@@ -200,6 +208,11 @@ async function startGame(kind = 'delivery') {
   enterGame(kind); $('mist').classList.remove('on');
 }
 async function leaveGame() {
+  if (game.inPlace) {
+    game.stop(); view = 'main'; document.body.classList.remove('game', 'carol'); const from = camPos.clone(), fl2 = camLook.clone();
+    await tween(1.4, (k) => { camPos.lerpVectors(from, home, easeIO(k)); camLook.lerpVectors(fl2, homeLook, easeIO(k)); });
+    mode = 'home'; busy = false; document.body.classList.remove('focus'); status(); return;
+  }
   $('mist').classList.add('on'); await tween(0.5, () => {});
   game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game', 'swing'); $('mist').classList.remove('on');
   const from = new THREE.Vector3(0, 30, home.z + 8), fl2 = new THREE.Vector3(0, 34, -40);
@@ -268,7 +281,7 @@ async function start() {
   const o = +params.get('open'); if (params.has('shot')) $('veil').remove();
   const ck = +params.get('click'); if (ck) setTimeout(() => openDoor(doors.find((x) => x.n === ck)), STEPS ? 0 : 600);
   if (STEPS) (async () => { for (let i = 0; i < STEPS; i++) { if (i === +params.get("leave")) leaveDay(); tick(0.05); await new Promise((r) => setTimeout(r, 0)); } })();
-  if (params.has('game') || params.has('swing')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); enterGame(params.has('swing') ? 'swing' : 'delivery'); }
+  if (params.has('game') || params.has('swing') || params.has('carol')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); camPos.copy(home); camLook.copy(homeLook); enterGame(params.has('carol') ? 'carol' : params.has('swing') ? 'swing' : 'delivery'); }
   if (o >= 1 && o <= 24) { busy = true; mode = 'seq'; document.body.classList.add('focus'); const d = doors.find((x) => x.n === o); camPos.set(d.x, d.y + 1, 7.4); camLook.set(d.x, d.y + 1, 0); enterDay(d); }
 }
 window.__test = () => { const bad = []; for (let n = 1; n <= 24; n++) { try { const d = makeDay(n); for (const t of [0.1, 2, 5, 9]) d.update(t, 0.016); renderer.render(d.scene, d.camera); d.dispose(); } catch (e) { bad.push(n + ': ' + e.message + ' @ ' + (e.stack || '').split('\n')[1]); } } return bad.length ? bad : 'all 24 ok'; };
@@ -276,10 +289,12 @@ window.__test = () => { const bad = []; for (let n = 1; n <= 24; n++) { try { co
 window.__gameTest = (secs = 240, o = {}) => { const g = newGame(o.kind ?? 'delivery', { bot: true, adaptive: false, record: false, onExit() {}, ...o }); g.start(); let i = 0; for (; i < secs * 60 && g.stats.state !== 'over'; i++) g.update(1 / 60); const s = g.stats; g.stop(); return { ...s, frames: i }; };
 // the same for George Swings, over several nights' forests: how far does the autopilot get in each?
 window.__swingTest = (secs = 120, seeds = 8) => Array.from({ length: seeds }, (_, i) => window.__gameTest(secs, { kind: 'swing', seed: 'test' + i }));
+// plays every carol at both difficulties with the autopilot (no sound) and reports any it cannot play perfectly
+window.__carolTest = () => { const g = newGame('carol', { bot: true, mute: true, record: false, song: 0, onExit() {} }), out = []; g.start(); for (let n = 1; n <= 24; n++) for (const d of [0, 1]) { g.play(n, d); let i = 0; for (; i < 200 * 60 && g.stats.state !== 'over'; i++) g.update(1 / 60); const s = g.stats; if (s.state !== 'over' || s.misses || s.hits !== s.targets || s.stars !== 3) out.push(s); } g.stop(); return out.length ? out : 'all 24 carols ok'; };
 window.__peek = () => game?.peek?.();
 // renders n game frames back to back and reports the average cost of one (ms), GPU included
 window.__gamePerf = (n = 120) => { const gl = renderer.getContext(), px = new Uint8Array(4), t0 = performance.now(); for (let i = 0; i < n; i++) { game.update(1 / 60); composer.render(); } gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const ms = (performance.now() - t0) / n; renderer.render(game.scene, game.camera); return { ms: +ms.toFixed(2), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr: PR, w: innerWidth, h: innerHeight, stats: game.stats }; };
 start().then(() => {
   if (!params.has('selftest')) return; const pre = document.createElement('pre'); pre.id = 'selftest'; document.body.appendChild(pre);
-  setTimeout(() => { pre.textContent = 'SELFTEST ' + JSON.stringify({ scenes: window.__test(), errors: window.__errs }); }, 1500);
+  setTimeout(() => { pre.textContent = 'SELFTEST ' + JSON.stringify({ scenes: window.__test(), songs: validateSongs(), errors: window.__errs }); }, 1500);
 });
