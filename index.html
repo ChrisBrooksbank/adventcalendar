@@ -19,7 +19,7 @@
   body.focus header, body.focus #toast { opacity: 0; transform: translateY(-14px); }
   #toast { left: 50%; bottom: clamp(18px, 6vh, 60px); transform: translate(-50%, 12px); max-width: min(92vw, 620px); padding: 12px 22px; border-radius: 999px; text-align: center;
     background: rgba(8, 14, 44, .72); border: 1px solid rgba(255, 226, 160, .45); backdrop-filter: blur(8px); font-size: clamp(16px, 2.3vh, 21px); color: #fff6dc; opacity: 0; }
-  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #toast.on, body.focus.peeking #toast.on { opacity: 1; transform: translate(-50%, 0); }
   #sound { top: 14px; right: 14px; pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 226, 160, .5); background: rgba(8, 14, 44, .55); color: var(--gold); font-size: 20px; cursor: pointer; }
   #sound.off { opacity: .45; text-decoration: line-through; }
   #cap { left: 0; right: 0; bottom: 0; padding: 40px clamp(16px, 5vw, 60px) clamp(18px, 4vh, 40px); text-align: center; opacity: 0; transform: translateY(20px);
@@ -29,6 +29,9 @@
   #cap h2 { margin: 2px 0 6px; font: 700 clamp(30px, 5.5vh, 58px)/1.05 "Mountains of Christmas", Georgia, serif; color: var(--gold); text-shadow: 0 0 22px rgba(255, 190, 80, .5); text-wrap: balance; }
   #cap p { margin: 0 auto; max-width: 46ch; font-size: clamp(17px, 2.5vh, 23px); line-height: 1.35; color: #f1f4ff; text-wrap: pretty; }
   #tune { margin-top: 8px; font-style: italic; color: #b9c8f5; font-size: clamp(14px, 1.9vh, 17px); }
+  #starline { margin-top: 6px; color: var(--gold); font-size: clamp(14px, 1.9vh, 17px); letter-spacing: .02em; opacity: .85; }
+  #starline.got { opacity: 1; text-shadow: 0 0 14px rgba(255, 200, 90, .9); animation: got 1.2s ease both; }
+  @keyframes got { 0% { transform: scale(.9); opacity: 0; } 40% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
   #back { pointer-events: none; margin-top: 14px; padding: 9px 22px; border-radius: 999px; border: 1px solid rgba(255, 226, 160, .6); background: rgba(255, 226, 160, .12); color: var(--gold); font: 500 17px "Cormorant Garamond", serif; cursor: pointer; }
   body.day #back { pointer-events: auto; }
   #back:hover, #sound:hover { background: rgba(255, 226, 160, .28); }
@@ -104,6 +107,7 @@
   <h2 id="title"></h2>
   <p id="text"></p>
   <div id="tune"></div>
+  <div id="starline"></div>
   <button id="back">← Back to the Advent House</button>
 </div>
 <div id="hud" class="ui">

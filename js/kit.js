@@ -1,5 +1,6 @@
 // Shared building kit: materials, primitives, characters, weather, particles.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 export { THREE };
 
 export const TAU = Math.PI * 2;
@@ -18,20 +19,36 @@ export const easeBack = (t) => { const c = 1.70158; return 1 + (c + 1) * Math.po
 export function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 export const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
+// ---------- shared look ----------
+// U.rim: a soft Fresnel edge light every standard material picks up (set per scene by main: cool moonlight at the house,
+// each door's own colour inside), so the little primitive-built figures read as glowing toys against the night.
+// U.time drives the glints in the snow. DETAIL scales curved geometry up on capable devices.
+export const U = { time: { value: 0 }, rim: { value: new THREE.Color(0x000000) }, rimPow: { value: 2.6 } };
+export let DETAIL = 1; export const setDetail = (d) => { DETAIL = d; };
+const RIM_KEY = 'rim1';
+function rimPatch(sh) {
+  sh.uniforms.uRim = U.rim; sh.uniforms.uRimPow = U.rimPow;
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uRimPow;')
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ float fr = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), uRimPow); totalEmissiveRadiance += uRim * fr * diffuseColor.rgb * 1.6 + uRim * fr * 0.25; }');
+}
+export function withRim(m) { m.onBeforeCompile = rimPatch; m.customProgramCacheKey = () => RIM_KEY; return m; }
+
 // ---------- materials & primitives ----------
-export const M = (color, o = {}) => new THREE.MeshStandardMaterial({
+export const M = (color, o = {}) => withRim(new THREE.MeshStandardMaterial({
   color, roughness: o.r ?? 0.85, metalness: o.m ?? 0, emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1,
   flatShading: !!o.flat, transparent: o.o !== undefined, opacity: o.o ?? 1, side: o.side ?? THREE.FrontSide,
-});
+}));
 export const G = (color, i = 1.6, o = {}) => new THREE.MeshBasicMaterial({
   color: new THREE.Color(color).multiplyScalar(i), transparent: o.o !== undefined, opacity: o.o ?? 1,
   side: o.side ?? THREE.FrontSide, blending: o.add ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: !o.add,
 });
-export const sph = (r = 1, w = 16, h = 12) => new THREE.SphereGeometry(r, w, h);
+const dd = (n, lo) => (n <= lo ? n : Math.round(n * DETAIL)); // low counts are deliberate facets (four-sided cones, flat-shaded rocks): keep those
+export const sph = (r = 1, w = 16, h = 12) => new THREE.SphereGeometry(r, dd(w, 7), dd(h, 5));
 export const box = (w = 1, h = 1, d = 1) => new THREE.BoxGeometry(w, h, d);
-export const cyl = (rt = 1, rb = 1, h = 1, s = 12, open = false) => new THREE.CylinderGeometry(rt, rb, h, s, 1, open);
-export const cone = (r = 1, h = 1, s = 12) => new THREE.ConeGeometry(r, h, s);
-export const tor = (r = 1, t = 0.1, a = 8, b = 24, arc = TAU) => new THREE.TorusGeometry(r, t, a, b, arc);
+export const rbox = (w = 1, h = 1, d = 1, r = 0.08) => new RoundedBoxGeometry(w, h, d, DETAIL > 1 ? 3 : 2, Math.min(r, w / 2, h / 2, d / 2) * 0.999);
+export const cyl = (rt = 1, rb = 1, h = 1, s = 12, open = false) => new THREE.CylinderGeometry(rt, rb, h, dd(s, 9), 1, open);
+export const cone = (r = 1, h = 1, s = 12) => new THREE.ConeGeometry(r, h, dd(s, 9));
+export const tor = (r = 1, t = 0.1, a = 8, b = 24, arc = TAU) => new THREE.TorusGeometry(r, t, dd(a, 6), dd(b, 12), arc);
 export function mesh(geo, material, x = 0, y = 0, z = 0, parent) {
   const m = new THREE.Mesh(geo, material); m.position.set(x, y, z); if (parent) parent.add(m); return m;
 }
@@ -225,7 +242,25 @@ export const hillH = (x, z) => Math.sin(x * 0.21 + 1.3) * Math.cos(z * 0.17) * 1
 export function snowGround(R = 110, bump = 0.6, color = 0xc2d0ee, flat = 9) {
   const geo = new THREE.PlaneGeometry(R * 2, R * 2, 72, 72); geo.rotateX(-Math.PI / 2); const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), d = Math.hypot(x, z); p.setY(i, hillH(x, z) * smooth(flat, flat + 26, d) * bump + Math.sin(x * 1.3) * Math.cos(z * 1.1) * 0.04); }
-  geo.computeVertexNormals(); return mesh(geo, M(color, { r: 0.95 }));
+  geo.computeVertexNormals(); return mesh(geo, sparkleSnow(M(color, { r: 0.95 })));
+}
+// Glints in the snow: a sparse grid of tiny facets, each catching the eye at its own viewing angle, so the
+// sparkles come and go as the camera drifts (and with the slow passing of time). Bloom turns them into stars.
+export const SPARKLE = { value: 1 };
+export function sparkleSnow(m) {
+  m.onBeforeCompile = (sh) => {
+    rimPatch(sh); sh.uniforms.uTime = U.time; sh.uniforms.uSpk = SPARKLE;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSpk;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSpk = (modelMatrix * vec4(transformed, 1.)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSpk; uniform float uTime, uSpk;\nfloat spkH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { vec2 q = vSpk.xz * 9.; vec2 c = floor(q); float h = spkH(c);
+        vec2 jit = vec2(spkH(c + 7.1), spkH(c + 3.7)) * .7 + .15; float d = length(fract(q) - jit);
+        float a = fract(h * 31. + dot(normalize(vViewPosition), vec3(3.1, 2.3, 1.7)) * 2.2 + uTime * .05);
+        float g = step(.72, h) * smoothstep(.045, 0., abs(a - .5)) * smoothstep(.2, .02, d);
+        float fade = smoothstep(46., 8., length(vViewPosition));
+        totalEmissiveRadiance += vec3(1., .97, .9) * g * fade * 4. * uSpk; }`);
+  };
+  m.customProgramCacheKey = () => 'sparkle1'; return m;
 }
 export const groundY = (x, z, bump = 0.6, flat = 9) => hillH(x, z) * smooth(flat, flat + 26, Math.hypot(x, z)) * bump;
 // A tiling texture of soft blue hollows and bright drifts for a big, scrolling snowfield.
@@ -310,7 +345,7 @@ export function win(parent, x, y, z, w = 0.5, h = 0.6, ry = 0, color = 0xffc866,
 }
 export function house(o = {}) {
   const w = o.w ?? 3, h = o.h ?? 2.2, d = o.d ?? 3, rh = o.rh ?? 1.5, g = new THREE.Group(), wall = M(o.color ?? 0xa86b4a);
-  mesh(box(w, h, d), wall, 0, h / 2, 0, g);
+  mesh(rbox(w, h, d, 0.06), wall, 0, h / 2, 0, g);
   mesh(prism(w + 0.5, rh + 0.12, d + 0.5), M(0xf4f8ff, { r: 0.95 }), 0, h - 0.04, 0, g);
   mesh(prism(w + 0.1, rh - 0.08, d + 0.54), wall, 0, h - 0.04, 0, g);
   const wy = h * 0.55, glass = [];
@@ -325,7 +360,7 @@ export function house(o = {}) {
 }
 export function present(s = 0.5, color = 0xc8102e, ribbon = 0xffd34d) {
   const g = new THREE.Group(), r = M(ribbon, { m: 0.5, r: 0.35 });
-  mesh(box(s, s * 0.8, s), M(color, { r: 0.6 }), 0, s * 0.4, 0, g);
+  mesh(rbox(s, s * 0.8, s, s * 0.07), M(color, { r: 0.5 }), 0, s * 0.4, 0, g);
   mesh(box(s * 1.03, s * 0.82, s * 0.16), r, 0, s * 0.4, 0, g); mesh(box(s * 0.16, s * 0.82, s * 1.03), r, 0, s * 0.4, 0, g);
   for (const sx of [-1, 1]) { const b = mesh(tor(s * 0.13, s * 0.045, 6, 12), r, sx * s * 0.13, s * 0.88, 0, g); b.rotation.y = Math.PI / 2; b.rotation.x = sx * 0.5; }
   return g;
@@ -552,7 +587,7 @@ export function bird(bodyC = 0x7a5a40, breast = 0xe8501c, s = 1) {
 }
 export function sleigh() {
   const g = new THREE.Group(), red = M(0xb0101c, { r: 0.45 }), gold = M(0xffd34d, { m: 0.85, r: 0.25, e: 0x5a3c00 });
-  mesh(box(1.5, 0.5, 0.85), red, 0, 0.55, 0, g); mesh(box(0.14, 0.85, 0.85), red, -0.7, 1.0, 0, g); mesh(box(1.54, 0.06, 0.89), gold, 0, 0.81, 0, g);
+  mesh(rbox(1.5, 0.5, 0.85, 0.08), red, 0, 0.55, 0, g); mesh(rbox(0.14, 0.85, 0.85, 0.05), red, -0.7, 1.0, 0, g); mesh(box(1.54, 0.06, 0.89), gold, 0, 0.81, 0, g);
   const curl = mesh(tor(0.32, 0.09, 8, 14, Math.PI * 1.1), red, 0.72, 0.82, 0, g); curl.rotation.z = -0.4; curl.scale.z = 4.2;
   for (const sz of [-1, 1]) {
     mesh(box(2.0, 0.05, 0.06), gold, 0, 0.1, sz * 0.42, g); const c = mesh(tor(0.25, 0.028, 6, 14, Math.PI), gold, 1.0, 0.35, sz * 0.42, g); c.rotation.z = -Math.PI / 2;

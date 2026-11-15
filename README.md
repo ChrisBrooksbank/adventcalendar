@@ -33,8 +33,11 @@ Except this calendar has a few extracurricular activities. Father Christmas need
 
 | The attraction | Why you’ll linger |
 | --- | --- |
-| 🚪 **24 little worlds** | Each door reveals its own animated scene, caption, and tune, from the first snowflake to the stillness of *Silent Night*. |
-| ✨ **A proper entrance** | Twenty-four different opening effects: hinges, theatre curtains, shattering fragments, melting panels, and more. Even the doors get a performance. |
+| 🚪 **24 little worlds** | Each door reveals its own animated scene, caption, and tune, from the first snowflake to the stillness of *Silent Night*. Soft shadows, glinting snow, mirror-black ice, light shafts and a miniature-film focus give every one the look of a precious diorama. |
+| ✨ **A proper entrance** | Twenty-four different opening effects, and then you *step through*: the open doorway is a true window into the world behind it, and the camera glides straight in without a single cut. |
+| ⭐ **Twenty-Four Stars** | The roof star has gone out and its light is scattered behind the doors. Find the star hidden in each world and it flies home into a constellation over the house, one more line each day, until Christmas Eve brings it all back down. |
+| 🗝️ **Tomorrow’s keyhole** | Once today’s door is open, light leaks from under tomorrow’s. Peek through the keyhole for a blurred glimpse and a riddle. |
+| 🪟 **Living windows** | Every door you open keeps playing a few seconds of its world, so the house front fills up with tiny moving scenes. |
 | 🛷 **Midnight Delivery** | Fly over a snowy village and drop presents down chimneys. Chase combos, conserve your magic, and beat your best delivery run. |
 | 🐒 **George Swings** | Hook fairy lights with tinsel, build momentum, and release at just the right moment. George supplies the enthusiasm; you supply the timing. |
 | 🎹 **Carol of the Doors** | Follow a carol on the glowing doors, choose gentle or full notes, or switch to free play and make the house your instrument. |
@@ -87,6 +90,10 @@ Append these query strings to the live or local URL:
 | `?date=2026-12-24` | Pretend it’s Christmas Eve and make all calendar doors available. |
 | `?date=2026-12-24&open=1` | Jump directly into the first door’s scene. Change `1` to any door from `1` to `24`. |
 | `?allcarols` | Make all carols available to the musical modes. |
+| `?date=2026-12-24&stars=1-14` | Preview the sky with those stars already home (`stars=all` for every one). |
+| `?date=2026-12-24&stars=all&finale` | Play the Christmas Eve finale. |
+| `?date=2026-12-05&peek=6` | Peek through door 6’s keyhole. |
+| `?q=0`, `?q=1`, `?q=2` | Force the low, medium or high graphics tier (normally picked automatically, and lowered if frames run slow). |
 | `?game` | Start Midnight Delivery. |
 | `?swing` | Start George Swings. |
 | `?carol` | Open Carol of the Doors. |
@@ -103,6 +110,8 @@ js/
   main.js           House, calendar dates, saved progress, and mode switching
   days*.js          The 24 scene definitions and scene lifecycle
   doors.js          Door fragments, opening effects, and portal shader
+  look.js           Quality tiers, shadows, reflections, grade pass, doorway camera, living windows
+  stars.js          Twenty-Four Stars: hidden star-sparks, the constellation, keyhole riddles
   kit.js            Shared 3D scenery, geometry, and effects
   friends.js        The cast of characters
   game.js           Midnight Delivery
@@ -112,7 +121,7 @@ js/
   audio.js          Active synthesiser and sound engine
   songs.js          Song arrangements and validation
   tunes.js          Melodies and tune names
-vendor/three/       Bundled Three.js and post-processing modules
+vendor/three/       Bundled Three.js, post-processing, Reflector and RoundedBoxGeometry modules
 sound-test.html     Sound audition page
 docs/               README animation
 ```
@@ -126,6 +135,8 @@ For focused checks, these helpers are also available in the browser’s develope
 
 ```js
 window.__test()        // Render all 24 scenes at several animation times
+window.__starTest()    // Check every door's star appears on screen and can be collected
+window.__dayPerf(10)   // Average cost of one frame of a door's world, post effects included
 window.__carolTest()   // Autoplay all 24 carols at both difficulties
 window.__bandTest()    // Check note timing across the 25-song concert programme
 window.__gameTest()    // Simulate a delivery run with the autopilot
