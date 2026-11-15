@@ -3,8 +3,29 @@ import {
   THREE, LK, TAU, rnd, pick, clamp, lerp, smooth, easeOut, easeBack, M, G, sph, box, cyl, cone, tor, mesh, grp, put, light, star3d,
   flakeTex, glyphTex, sprite, halo, twinkles, Particles, aurora, moon, snowGround, groundY, pine, forest, win, house, present, gift, GIFT,
   lampPost, fire, candle, figure, walk, santa, beast, gallop, nod, reindeer, horse, highlandCow, bird, sleigh, sleighTeam,
+  withRim,
 } from './kit.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { snowman, moose, monkey } from './friends.js';
+import { Q } from './look.js';
+// a mirror of ice: a real reflection on capable devices, with a frosty, translucent skin laid over it
+export function iceMirror(g, geo, y, tint = 0x8fa6c0, skin = 0x9fd0ee, skinO = 0.3) {
+  if (Q.tier === 0) return null; const s = Q.tier === 2 ? 1024 : 512;
+  const r = new Reflector(geo, { color: tint, textureWidth: s, textureHeight: s, clipBias: 0.003 }); r.rotation.x = -Math.PI / 2; r.position.y = y; g.add(r);
+  const top = mesh(geo.clone(), M(skin, { o: skinO, r: 0.1, m: 0.2 }), 0, y + 0.006, 0, g); top.rotation.x = -Math.PI / 2; top.material.depthWrite = false; return r;
+}
+// creeping frost: fern-like crystals drawn once, grown up a surface from the bottom
+let _frost;
+function frostTex() {
+  if (_frost) return _frost; const c = document.createElement('canvas'); c.width = 256; c.height = 512; const x = c.getContext('2d'); x.strokeStyle = 'rgba(235,245,255,.85)'; x.lineCap = 'round';
+  const fern = (px, py, a, len, w, d) => {
+    if (d > 4 || len < 3) return; const ex = px + Math.cos(a) * len, ey = py + Math.sin(a) * len; x.lineWidth = w; x.beginPath(); x.moveTo(px, py); x.lineTo(ex, ey); x.stroke();
+    for (let k = 1; k < 4; k++) { const f = k / 4, bx = px + (ex - px) * f, by = py + (ey - py) * f; fern(bx, by, a - 0.9 + rnd(-0.2, 0.2), len * 0.4, w * 0.6, d + 1); fern(bx, by, a + 0.9 + rnd(-0.2, 0.2), len * 0.4, w * 0.6, d + 1); }
+    fern(ex, ey, a + rnd(-0.4, 0.4), len * 0.7, w * 0.8, d + 1);
+  };
+  for (let i = 0; i < 14; i++) fern(rnd(256), 512 - rnd(60), -Math.PI / 2 + rnd(-0.7, 0.7), rnd(40, 90), 2.2, 0);
+  _frost = new THREE.CanvasTexture(c); _frost.colorSpace = THREE.SRGBColorSpace; return _frost;
+}
 
 export const face = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z); return o; };
 export const faceB = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z) - Math.PI / 2; return o; };
@@ -26,15 +47,17 @@ export const DAYS_A = [
   { // 1
     t: 'The First Snowflake', s: 'High above the sleeping forest, winter makes its very first snowflake — and then, quietly, a million more.',
     col: [0x9fd4ff, 0xffffff], cam: [0, 2.6, 10], look: [0, 2.8, 0],
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 34, 9, 30);
-      const fm = M(0xd8ecff, { e: 0x7fc4ff, ei: 1.5, r: 0.2, m: 0.2 }), flake = grp(g, 0, 3, 0);
+      // ice with a thin-film shimmer: the arms catch rainbow colours as the flake turns
+      const fm = withRim(new THREE.MeshPhysicalMaterial({ color: 0xd8ecff, emissive: 0x4f94df, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.35, iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [180, 720], clearcoat: 1, clearcoatRoughness: 0.05 })), flake = grp(g, 0, 3, 0);
       for (let i = 0; i < 6; i++) {
         const a = grp(flake); a.rotation.z = i * TAU / 6; mesh(box(0.09, 1.7, 0.06), fm, 0, 0.85, 0, a);
         for (const [y, l] of [[0.5, 0.55], [0.92, 0.44], [1.3, 0.28]]) for (const s of [1, -1]) { const b = mesh(box(0.07, l, 0.05), fm, s * l * 0.43, y + l * 0.25, 0, a); b.rotation.z = -s * TAU / 6; }
         mesh(sph(0.07, 8, 6), G(0xcfeaff, 2.2), 0, 1.74, 0, a);
       }
       mesh(sph(0.17), G(0xffffff, 2.6), 0, 0, 0, flake); const h = halo(0x9fd4ff, 8, 0, 3, 0, g, 0.6); light(0x9fd0ff, 30, 22, 0, 3, 1.5, g);
+      ctx.star(flake, 0, 0, 0.35, { t: 3.4 }); ctx.rays(flake, 0.55, 0xbfe0ff); // the flake's own heart
       const minis = []; for (let i = 0; i < 40; i++) minis.push({ s: sprite(flakeTex(), 0xdff0ff, rnd(0.25, 0.65), 0, 0, 0, g), a: rnd(TAU), r: rnd(2.4, 7), y: rnd(0.6, 6), w: rnd(0.12, 0.45) * (rnd() < 0.5 ? -1 : 1) });
       return (t) => {
         flake.scale.setScalar(0.01 + easeBack(clamp(t / 3))); flake.position.y = 3 + (1 - easeOut(clamp(t / 3))) * 9 + Math.sin(t * 0.8) * 0.15; h.position.y = flake.position.y;
@@ -46,14 +69,16 @@ export const DAYS_A = [
   { // 2
     t: 'Deck the Halls', s: 'The fire is lit, the stockings are hung, and somebody small and furry has claimed the best armchair.',
     col: [0xff8a30, 0xffd070], sky: [0x120806, 0x241008], snow: 0, stars: false, fogD: 0, light: 0.4, hemi: [0xffc9a0, 0x3a2015], cam: [0.6, 2.2, 7.2], look: [0.3, 1.8, -1.5], orbit: 0.1,
-    build(g) {
+    build(g, ctx) {
       const wood = M(0x5a3a22), stone = M(0x8d8782, { flat: true });
       mesh(box(16, 0.2, 12), wood, 0, -0.1, 0, g); mesh(box(16, 8, 0.2), M(0x6e2430), 0, 4, -2.7, g); mesh(box(16, 1.1, 0.26), M(0x3d2516), 0, 0.55, -2.62, g);
       for (const sx of [-1, 1]) mesh(box(0.55, 2.1, 0.8), stone, sx * 1.15, 1.05, -2.25, g);
       mesh(box(2.85, 0.5, 0.8), stone, 0, 2.3, -2.25, g); mesh(box(2.5, 5, 0.5), stone, 0, 5, -2.45, g); mesh(box(1.8, 2.1, 0.1), M(0x0c0807), 0, 1.05, -2.55, g);
       mesh(box(3.4, 0.14, 1.0), M(0x3d2516), 0, 2.62, -2.2, g);
       const f = put(fire(1.15), g, 0, 0.1, -2.15); f.userData.power = 0;
+      if (Q.tier === 2) { const fl = f.userData.l; fl.castShadow = true; fl.shadow.mapSize.setScalar(512); fl.shadow.bias = -0.002; fl.position.z = 0.9; } // the fire throws the stockings' shadows across the room
       const socks = [0xc8102e, 0x1f7a4a, 0xf2f2f2, 0x2a5db0].map((c, i) => { const s = grp(g, -1.2 + i * 0.8, 2.52, -1.68), m = M(c); mesh(box(0.22, 0.5, 0.1), m, 0, -0.3, 0, s); mesh(box(0.38, 0.2, 0.1), m, 0.08, -0.62, 0, s); mesh(box(0.27, 0.15, 0.12), M(c === 0xf2f2f2 ? 0xc8102e : 0xffffff), 0, -0.08, 0, s); return s; });
+      ctx.star(socks[2], 0.06, -0.38, 0.16, { tap: socks[2] }); socks.forEach((s) => ctx.tap(s, () => { s.userData.kick = 1; })); // the stocking that jingles
       const gl = []; for (let i = 0; i < 30; i++) { const x = -1.65 + i * 0.114, y = 2.78 + Math.abs(Math.sin(i * 0.52)) * -0.1; gl.push([x, y, -1.72, LIGHTS[i % 6], i / 30]); mesh(sph(0.1, 6, 5), M(0x1f5a36), x, y - 0.02, -1.78, g); }
       const garland = twinkles(gl, 0.9, 3, 0.6); g.add(garland);
       for (const x of [-1.3, -0.9, 1.0, 1.35]) put(candle(rnd(0.3, 0.55)), g, x, 2.69, -2.3);
@@ -70,18 +95,18 @@ export const DAYS_A = [
       return (t) => {
         const k = smooth(0.4, 2.2, t); f.scale.setScalar(Math.max(0.01, k) * 1.0); f.userData.power = 70 * k; f.userData.hl.material.opacity = 0.5 * k;
         garland.userData.u.uReveal.value = clamp((t - 2) / 2); tl.userData.u.uReveal.value = clamp((t - 3.5) / 2.5);
-        socks.forEach((s, i) => { s.rotation.z = Math.sin(t * 1.3 + i) * 0.07; }); cb.scale.y = 0.7 + Math.sin(t * 1.6) * 0.03; george.userData.wave(t);
+        socks.forEach((s, i) => { s.userData.kick = Math.max(0, (s.userData.kick ?? 0) - 0.02); s.rotation.z = Math.sin(t * 1.3 + i) * 0.07 + Math.sin(t * 22) * 0.25 * s.userData.kick; }); cb.scale.y = 0.7 + Math.sin(t * 1.6) * 0.03; george.userData.wave(t);
       };
     },
   },
   { // 3
     t: 'The Snowmen Dance', s: 'When nobody is looking, snowmen dance. Tonight George caught them at it — and joined in with a snowball.',
     col: [0xffffff, 0x7fd0ff], cam: [0, 2.3, 9], look: [0, 1.5, 0], snow: 2200,
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 32, 10, 30); put(house({ color: 0x9a5a3a }), g, -8, 0, -10, 1.3, 0.5);
       const sm = [[0, 0, 1.3, 0xc8102e], [-2.3, 0.5, 0.95, 0x1f7a4a, 'bobble'], [2.0, 0.7, 0.7, 0x2a5db0, 'bobble']].map(([x, z, s, c, h]) => { const m = put(snowman({ scarf: c, hat: h }), g, x, 0, z); m.userData.s = s; return m; });
       const george = put(monkey(), g, 4.0, 0, 2.2, 0.9, -0.9), ball = mesh(sph(0.13, 10, 8), M(0xffffff), 0, 0, 0, g);
-      const pool = new Particles(200); g.add(pool.points);
+      const pool = new Particles(200); g.add(pool.points); ctx.star(g, 0.45, 0.42, 0.95, { t: 3.6 }); // shaken out of the snowball when it bursts
       return (t, dt) => {
         sm.forEach((m, i) => {
           const k = easeBack(clamp(t * 0.7 - i * 0.6)), b = t * 3 + i * 1.3; m.scale.setScalar(Math.max(0.001, k) * m.userData.s);
@@ -99,15 +124,17 @@ export const DAYS_A = [
   { // 4
     t: 'O Christmas Tree', s: 'Deep in the forest the great tree wakes, light by light — and the moose comes every year to see it.',
     col: [0x39d353, 0xffd34d], cam: [0, 3.4, 13.5], look: [0, 3.9, 0],
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 40, 11, 32); const h = 7.5, tree = put(pine(h), g, 0, 0, 0), tl = treeLights(tree, h, 220, 11), star = topStar(tree, h * 1.07, 0.5);
       const baubles = []; for (let i = 0; i < 40; i++) { const f = rnd(0.02, 0.9), a = rnd(TAU), r = h * 0.36 * (1 - f) + 0.12, c = pick([0xd0101c, 0xffc020, 0x2a6ad0, 0xc040c0, 0xf0f0f0]); const b = mesh(sph(0.13, 12, 9), M(c, { m: 0.9, r: 0.15, e: c, ei: 0.25 }), Math.cos(a) * r, h * 0.2 + f * h * 0.8, Math.sin(a) * r, tree); b.userData.f = f; baubles.push(b); }
+      const gb = mesh(sph(0.22, 18, 14), M(0xffd34d, { m: 1, r: 0.12, e: 0x7a5200, ei: 0.5 }), 0, h * 0.44, h * 0.36 * 0.7 + 0.16, tree); gb.userData.f = 0.3; baubles.push(gb); ctx.star(gb, 0, 0, 0.5, { tap: gb }); // the one gold bauble
       for (let i = 0; i < 9; i++) put(gift(rnd(0.4, 0.75)), g, Math.cos(i * 0.7) * 2.7, 0, Math.sin(i * 0.7) * 2.7 + 0.3, 1, rnd(2));
+      const pools = [[0xff4030, -1.8, 1.4], [0x40ff70, 1.9, 1.2], [0x4080ff, 0.2, 2.4], [0xffd040, -0.4, -1.9]].map(([c, x, z]) => light(c, 0, 7, x, 0.7, z, g)); // coloured light pooling on the snow
       const ms = faceB(put(moose(), g, -4.6, 0, 2.6, 1.05), 0, 0), rd = faceB(put(reindeer(), g, 4.4, 0, 2.2, 0.95), 0, 0), fawn = faceB(put(reindeer(), g, 5.3, 0, 3.1, 0.55), 0, 0);
       const l = light(0xffd070, 0, 26, 0, 4, 3, g);
       return (t) => {
         const rv = clamp((t - 1) / 4.5); tl.userData.u.uReveal.value = rv; baubles.forEach((b) => b.scale.setScalar(clamp((rv - b.userData.f) * 8) + 0.001));
-        star.scale.setScalar(easeBack(clamp(t - 5.5)) + 0.001); star.rotation.y = t; l.intensity = rv * 40 * LK;
+        star.scale.setScalar(easeBack(clamp(t - 5.5)) + 0.001); star.rotation.y = t; l.intensity = rv * 40 * LK; pools.forEach((p, i) => { p.intensity = rv * (9 + 3 * Math.sin(t * 2 + i * 1.7)) * LK; });
         nod(ms, t, 0.1, 0.7); nod(rd, t + 1, 0.1, 0.9); nod(fawn, t + 2, 0.2, 1.6);
       };
     },
@@ -115,23 +142,26 @@ export const DAYS_A = [
   { // 5
     t: 'Good King Wenceslas', s: 'Brightly shone the moon that night, though the frost was cruel — and the page trod safely in his master’s steps.',
     col: [0xcfe0ff, 0xffd34d], cam: [0, 2.6, 11], look: [0, 1.6, 0], snow: 2600, fogD: 0.016,
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 30, 12, 32); moon(6, 16, 22, -70, g); put(pine(5), g, 0, 0, 0);
       const cot = put(house({ color: 0x7a5a48, w: 2.6 }), g, -9, groundY(-9, -14), -14, 1, 0.5), sm = smoke(g, -8.2, groundY(-9, -14) + 4.2, -14.5);
       const kingF = figure({ robe: 0xa0151f, head: 'crown', hat: 0xa0151f, beard: 0x8a6a4a, trim: 0xffffff, staff: true, h: 1.15 }), page = figure({ robe: 0x2f6a3a, head: 'bobble', hat: 0x8a5a2a, h: 0.85 });
       g.add(kingF, page); const lan = grp(page.userData.armL, 0, -0.65, 0); mesh(box(0.14, 0.2, 0.14), G(0xffc050, 2.6), 0, 0, 0, lan); halo(0xffb040, 1.8, 0, 0, 0, lan, 0.7); light(0xffb050, 10, 8, 0, 0, 0, lan); page.userData.armL.rotation.x = -0.9; page.userData.fixL = true; kingF.userData.fixR = true;
-      for (let i = 0; i < 70; i++) { const a = i / 70 * TAU, r = 4.5 + (i % 2 ? 0.14 : -0.14); mesh(cyl(0.09, 0.09, 0.02, 8), M(0xb8c6e0), Math.cos(a) * r, 0.012, Math.sin(a) * r, g).scale.z = 1.6; }
+      // "In his master's steps he trod, where the snow lay dinted": each footprint glows warm as the king passes
+      const prints = []; for (let i = 0; i < 70; i++) { const a = i / 70 * TAU, r = 4.5 + (i % 2 ? 0.14 : -0.14), p = mesh(cyl(0.09, 0.09, 0.02, 10), M(0xb8c6e0, { e: 0xffb050, ei: 0 }), Math.cos(a) * r, 0.012, Math.sin(a) * r, g); p.scale.z = 1.6; p.userData.a = a; prints.push(p); }
+      ctx.star(lan, 0, 0.34, 0, { t: 4 });
       const cow = faceB(put(highlandCow(), g, 6.5, 0, -2.5), 0, 4);
       return (t) => {
         [[kingF, 0], [page, -0.36]].forEach(([f, off]) => { const a = t * 0.22 + off + 1; f.position.set(Math.cos(a) * 4.5, 0, Math.sin(a) * 4.5); f.rotation.y = -a; walk(f, t + off * 3, 4.5, 0.45); });
         sm(t); nod(cow, t, 0.1, 0.8);
+        const ak = ((t * 0.22 + 1) % TAU + TAU) % TAU; prints.forEach((p) => { const d = ((ak - p.userData.a) % TAU + TAU) % TAU; p.material.emissiveIntensity = d < 3 ? (1 - d / 3) * 1.6 : 0; });
       };
     },
   },
   { // 6
     t: 'Saint Nicholas’ Day', s: 'Ho, ho, ho! Father Christmas opens his sack to check the presents — and finds one extra helper inside.',
     col: [0xff3b30, 0xffd34d], cam: [0, 2.6, 9.5], look: [0, 2.1, 0],
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 30, 11, 30); g.add(aurora(130, 30, 50, 0x35ffb0, 0x9050ff, 0.7));
       const fc = put(santa(), g, 0.4, 0, 0, 1.55), sack = grp(g, -2.2, 0, -0.2); mesh(sph(0.95, 14, 10), M(0x6b4a2a), 0, 0.85, 0, sack).scale.y = 1.1; mesh(tor(0.5, 0.1, 6, 16), M(0x5a3c20), 0, 1.75, 0, sack).rotation.x = Math.PI / 2;
       const george = put(monkey(), sack, 0, 1.2, 0, 0.8);
@@ -139,7 +169,7 @@ export const DAYS_A = [
       const pole = grp(g, 3.3, 0, -1.2); for (let i = 0; i < 8; i++) mesh(cyl(0.09, 0.09, 0.3, 10), M(i % 2 ? 0xffffff : 0xd0101c), 0, 0.15 + i * 0.3, 0, pole); mesh(sph(0.2), G(0xffe070, 2), 0, 2.55, 0, pole); halo(0xffd050, 2, 0, 2.55, 0, pole, 0.6);
       mesh(box(1.1, 0.4, 0.06), M(0xf4ead0), 0.35, 1.9, 0.1, pole);
       const r1 = faceB(put(reindeer(true), g, 4.6, 0, -2.6), 0, 3), r2 = faceB(put(reindeer(), g, 5.8, 0, -1.9, 0.9), 0, 3);
-      const gifts = []; for (let i = 0; i < 12; i++) { const [a, b] = GIFT[i % GIFT.length]; gifts.push(put(present(0.42, a, b), g, 0, 0, 0)); }
+      const gifts = []; for (let i = 0; i < 12; i++) { const [a, b] = GIFT[i % GIFT.length]; gifts.push(put(present(0.42, a, b), g, 0, 0, 0)); } ctx.star(gifts[5], 0, 0.72, 0, { t: 5 }); // riding on the star-wrapped present
       const pool = new Particles(300); g.add(pool.points);
       return (t, dt) => {
         fc.userData.armR.rotation.z = 2.5 + Math.sin(t * 4) * 0.35; fc.userData.body.position.y = Math.abs(Math.sin(t * 5)) * 0.03; fc.userData.head.rotation.z = Math.sin(t * 2.5) * 0.08; fc.rotation.y = Math.sin(t * 0.5) * 0.25;
@@ -157,16 +187,17 @@ export const DAYS_A = [
   { // 7
     t: 'We Wish You a Merry Christmas', s: 'Under the lamplight the carollers sing, and every note floats up to join the stars. Even Hamish the Highland cow hums along.',
     col: [0xffc060, 0xff7ad9], cam: [0, 2.2, 8.5], look: [0, 1.9, 0],
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 26, 12, 30); const cot = put(house({ color: 0xb0886a, w: 4, d: 3 }), g, 1.2, 0, -5.5, 1.6);
       mesh(tor(0.28, 0.09, 6, 16), M(0x1f5a36), 1.2, 1.5, -3.02, g); const lp = put(lampPost(3.2), g, -2.6, 0, -0.4);
       const defs = [{ robe: 0x7a1f2b, head: 'tophat', hat: 0x15151a, scarf: 0xffffff }, { robe: 0x2a5db0, head: 'bonnet', hat: 0x8a2a4a, scarf: 0xffd34d }, { robe: 0x1f7a4a, head: 'bobble', hat: 0xc8102e, scarf: 0xc8102e, h: 0.68 }, { robe: 0x6a3a8a, head: 'bobble', hat: 0xffd34d, scarf: 0x39d353, beard: 0xdddddd }];
       const singers = defs.map((d, i) => { const f = put(figure(d), g, -1.5 + i * 1.0, 0, 0.5 - Math.abs(i - 1.5) * 0.3); f.rotation.y = (1.5 - i) * 0.22; f.userData.armL.rotation.set(-1.1, 0, 0.5); f.userData.armR.rotation.set(-1.1, 0, -0.5); mesh(box(0.3, 0.2, 0.03), M(0xffffff), 0, 0.82, 0.36, f.userData.body).rotation.x = -0.5; return f; });
       const cow = faceB(put(highlandCow(), g, 3.9, 0, 0.3), 0, 2); mesh(tor(0.2, 0.05, 6, 14), M(0xc8102e), 0, -0.1, 0, cow.userData.neck).rotation.x = Math.PI / 2;
       const notes = []; for (let i = 0; i < 14; i++) notes.push({ s: sprite(glyphTex(i % 2 ? '♪' : '♫'), pick([0xffe070, 0xff9ad0, 0x9fe0ff, 0xffffff]), 0.45, 0, 0, 0, g), x: -1.5 + (i % 4) * 1.0, ph: i / 14 });
+      ctx.star(g, 0.55, 5.3, 0.6, { t: 6 }); // the one note that never fades
       return (t) => {
         singers.forEach((f, i) => { f.userData.body.rotation.z = Math.sin(t * 2 + i * 0.5) * 0.07; f.userData.head.rotation.x = -0.15 + Math.sin(t * 4 + i) * 0.08; });
-        notes.forEach((n) => { const u = (t * 0.22 + n.ph) % 1; n.s.position.set(n.x + Math.sin(u * 7 + n.ph * 20) * 0.5, 1.7 + u * 4.2, 0.6); n.s.material.opacity = Math.sin(u * Math.PI) * smooth(0.5, 2, t); n.s.material.rotation = Math.sin(u * 5) * 0.4; });
+        notes.forEach((n) => { const u = (t * 0.22 + n.ph) % 1; n.s.position.set(n.x + Math.sin(u * 7 + n.ph * 20) * 0.5, 1.7 + u * 4.2, 0.6); n.s.material.opacity = Math.sin(u * Math.PI) * smooth(0.5, 2, t); n.s.material.rotation = Math.sin(u * 5) * 0.4; if (u > 0.9 && Math.random() < 0.08) ctx.fx.emit(n.s.position.x, n.s.position.y, n.s.position.z, rnd(-0.1, 0.1), rnd(0.1, 0.3), 0, pick([0xffffff, 0xffe9a0]), 1.8, 0.8, 0); }); // each note becomes a star
         nod(cow, t * 2, 0.12, 1); cow.rotation.z = Math.sin(t * 2) * 0.03; lp.userData.l.intensity = 16 * smooth(0, 1, t) * (0.95 + 0.05 * Math.sin(t * 17)) * LK;
       };
     },
@@ -174,12 +205,13 @@ export const DAYS_A = [
   { // 8
     t: 'Dashing Through the Snow', s: 'Bells on bobtails ring! Round and round the frozen wood goes the one-horse open sleigh.',
     col: [0xffffff, 0xff3b30], cam: [0, 3.2, 12.5], look: [0, 1.4, 0], snow: 2200,
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround(110, 0.6, 0xc2d0ee, 12)); forest(g, 34, 13, 32); for (let i = 0; i < 7; i++) put(pine(rnd(2.5, 5)), g, Math.cos(i * 0.9) * rnd(0.3, 2.4), 0, Math.sin(i * 0.9) * rnd(0.3, 2.2) - 0.5);
       const rig = grp(g), hs = put(horse(), rig, 2.3, 0, 0); rig.add(sleigh());
       const a = put(figure({ robe: 0x2a5db0, head: 'bobble', hat: 0xffd34d, scarf: 0xffffff }), rig, 0.25, 0.55, 0.2, 0.72, Math.PI / 2), b = put(figure({ robe: 0x7a1f8a, head: 'bonnet', hat: 0xc8102e, scarf: 0x39d353 }), rig, 0.25, 0.55, -0.2, 0.68, Math.PI / 2);
       for (const sz of [-1, 1]) mesh(box(2.1, 0.02, 0.02), M(0x3a2414), 1.6, 1.0, sz * 0.15, rig);
       const lan = mesh(sph(0.09), G(0xffc050, 3), 0.95, 1.25, 0.45, rig); halo(0xffb040, 1.6, 0.95, 1.25, 0.45, rig, 0.7); light(0xffb050, 10, 9, 1, 1.4, 0, rig);
+      ctx.star(g, -2.9, 3.5, 2.2, { t: 4 }); // shaken loose from the bells, caught in Monty's antlers
       const ms = faceB(put(moose(), g, -2.9, 0, 2.2, 0.95), 0, 9), pool = new Particles(500); g.add(pool.points); const R = 6.3;
       return (t, dt) => {
         const an = t * 0.5; rig.position.set(Math.cos(an) * R, Math.abs(Math.sin(t * 9)) * 0.03, Math.sin(an) * R); rig.rotation.y = -(an + Math.PI / 2); rig.rotation.z = 0.05;
@@ -191,8 +223,8 @@ export const DAYS_A = [
   },
   { // 9
     t: 'The Holly and the Ivy', s: 'A wreath on the door says welcome. A robin on the wreath says: and a merry Christmas to you, too.',
-    col: [0x39d353, 0xff3b30], cam: [0, 2.5, 6], look: [0, 2.5, 0], orbit: 0.09, snow: 900,
-    build(g) {
+    col: [0x39d353, 0xff3b30], cam: [0, 2.5, 6], look: [0, 2.5, 0], orbit: 0.09, snow: 900, grade: { tilt: 1.4 },
+    build(g, ctx) {
       g.add(snowGround()); mesh(box(11, 7, 0.4), M(0x9a948c, { flat: true }), 0, 3.5, -0.4, g); mesh(box(2.3, 4.2, 0.16), M(0xa01420, { r: 0.5 }), 0, 2.1, -0.14, g);
       for (const [x, y] of [[-0.5, 3.2], [0.5, 3.2], [-0.5, 1.2], [0.5, 1.2]]) mesh(box(0.7, 1.3, 0.05), M(0x8a1019, { r: 0.5 }), x, y, -0.05, g);
       mesh(sph(0.08), M(0xffd34d, { m: 0.9, r: 0.2 }), 0.9, 2.0, 0, g); mesh(box(2.9, 0.25, 0.9), M(0xf4f8ff), 0, 0.1, 0.2, g); mesh(box(2.7, 0.3, 0.5), M(0xf4f8ff), 0, 4.35, -0.1, g);
@@ -203,20 +235,25 @@ export const DAYS_A = [
       for (let i = 0; i < 26; i++) { const a = rnd(TAU), b = mesh(sph(0.045, 8, 6), M(0xe01020, { e: 0xa00000, ei: 0.8, r: 0.3 }), C[0] + Math.cos(a) * (R + rnd(-0.1, 0.1)), C[1] + Math.sin(a) * (R + rnd(-0.1, 0.1)), C[2] + 0.2, g); b.userData.o = ((a / TAU + 0.75) % 1); leaves.push(b); }
       const wl = []; for (let i = 0; i < 22; i++) { const a = i / 22 * TAU; wl.push([C[0] + Math.cos(a) * R, C[1] + Math.sin(a) * R, C[2] + 0.26, 0xffd890, (a / TAU + 0.75) % 1]); } const lights = twinkles(wl, 0.8, 3, 0.4); g.add(lights);
       const bow = grp(g, 0, C[1] - R - 0.02, 0.36), bm = M(0xc8102e, { r: 0.5 }); for (const s of [-1, 1]) { mesh(tor(0.14, 0.05, 6, 12), bm, s * 0.16, 0, 0, bow).scale.y = 0.7; mesh(box(0.1, 0.5, 0.03), bm, s * 0.1, -0.3, 0, bow).rotation.z = s * 0.3; } mesh(sph(0.07), bm, 0, 0, 0.02, bow);
-      const robin = put(bird(), g, 0, C[1] - R + 0.2, 0.3, 1.25);
+      const robin = put(bird(), g, 0, C[1] - R + 0.2, 0.3, 1.25); ctx.star(robin, 0, 0.62, 0.1, { t: 5.8 }); // the robin brings it
+      const frost = mesh(new THREE.PlaneGeometry(2.3, 4.2).translate(0, 2.1, 0), new THREE.MeshBasicMaterial({ map: frostTex(), transparent: true, opacity: 0, depthWrite: false, color: 0xcfe4ff }), 0, 0, -0.052, g);
       return (t) => {
         const rv = clamp(t / 4); leaves.forEach((l) => l.scale.setScalar(easeBack(clamp((rv - l.userData.o * 0.85) * 7)) + 0.001)); lights.userData.u.uReveal.value = rv; bow.scale.setScalar(easeBack(clamp(t - 4)) + 0.001);
         const k = smooth(4.5, 5.5, t), fl = (t % 6) < 0.7 && t > 6; robin.position.set((1 - k) * 4, C[1] - R + 0.2 + (1 - k) * 2 + Math.abs(Math.sin(t * 5)) * 0.03 + (fl ? Math.sin((t % 6) / 0.7 * Math.PI) * 0.25 : 0), 0.3);
         robin.userData.wings.forEach((w, i) => { w.rotation.z = (k < 1 || fl) ? Math.sin(t * 40) * 0.9 * (i ? 1 : -1) : 0; });
         robin.userData.head.rotation.z = Math.round(Math.sin(t * 1.3)) * 0.35; robin.rotation.y = Math.sin(t * 0.7) * 0.5;
+        const fz = smooth(1, 9, t); frost.scale.y = 0.05 + fz * 0.95; frost.material.opacity = 0.55 * fz; // frost creeps up the door
       };
     },
   },
   { // 10
     t: 'Carol of the Bells', s: 'The pond has frozen clear as glass. Scarves fly, blades ring, and George discovers he is rather good at this.',
     col: [0x7fd0ff, 0xffd34d], cam: [0, 4.2, 13], look: [0, 0.8, 0],
-    build(g) {
-      g.add(snowGround(110, 0.6, 0xc2d0ee, 12)); forest(g, 34, 12, 32); mesh(cyl(8, 8, 0.06, 48), M(0x9fd0ee, { r: 0.08, m: 0.35 }), 0, 0.03, 0, g); mesh(tor(8.1, 0.35, 8, 48), M(0xf4f8ff), 0, 0, 0, g).rotation.x = Math.PI / 2;
+    build(g, ctx) {
+      g.add(snowGround(110, 0.6, 0xc2d0ee, 12)); forest(g, 34, 12, 32);
+      if (!iceMirror(g, new THREE.CircleGeometry(8, 64), 0.062)) mesh(cyl(8, 8, 0.06, 48), M(0x9fd0ee, { r: 0.08, m: 0.35 }), 0, 0.03, 0, g); // skaters, lights and sky in the black ice
+      ctx.star(g, 0.2, 0.42, 1.5, { t: 3 }); // frozen into the pond, freed by the spinning skater
+      mesh(tor(8.1, 0.35, 8, 48), M(0xf4f8ff), 0, 0, 0, g).rotation.x = Math.PI / 2;
       const pts = []; for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, a2 = (i + 1) / 10 * TAU; mesh(cyl(0.05, 0.06, 3, 6), M(0x3a2a1c), Math.cos(a) * 9, 1.5, Math.sin(a) * 9, g); for (let k = 0; k < 9; k++) { const f = k / 9, b = lerp(a, a2, f); pts.push([Math.cos(b) * 9, 3 - Math.sin(f * Math.PI) * 0.6, Math.sin(b) * 9, LIGHTS[(i * 9 + k) % 6]]); } }
       g.add(twinkles(pts, 1.6, 2.5, 0.5)); put(fire(0.9), g, -9.6, 0, 3);
       const mk = (o) => { const f = figure(o); f.userData.armL.rotation.z = -1.2; f.userData.armR.rotation.z = 1.2; g.add(f); return f; };
@@ -241,7 +278,7 @@ export const DAYS_A = [
   { // 11
     t: 'Up on the Housetop', s: 'Reindeer pause, and down through the chimney goes Father Christmas. George is minding the sleigh. Probably.',
     col: [0xff3b30, 0xffffff], cam: [0, 6.6, 12], look: [0.4, 5.6, 0], snow: 1400, fogD: 0.01,
-    build(g) {
+    build(g, ctx) {
       const base = mesh(box(200, 1, 200), M(0xdfe8fa), 0, -0.5, 0, g); moon(6, -10, 16, -60, g);
       const big = put(house({ color: 0x8a5a48, w: 5.5, d: 8, h: 3, rh: 2.6, attic: false }), g, 0, 0, 0, 1, Math.PI / 2);
       for (let i = 0; i < 9; i++) put(house({ color: pick([0x9a6a4a, 0x7a5a6a, 0xa07a5a, 0x6a6a7a]), h: rnd(2, 3) }), g, -18 + i * 4.6 + rnd(1), 0, -9 - rnd(8), 1.2, rnd(-0.3, 0.3));
@@ -250,7 +287,7 @@ export const DAYS_A = [
       const fc = put(santa(), ch, 0, 4.2, 0, 0.9), gf = put(present(0.4, 0x1f7a4a, 0xffd34d), fc.userData.armL, 0, -0.95, 0.1);
       const team = put(sleighTeam(1, monkey()), g, -2.6, 5.62, 0, 0.8, Math.PI / 2); team.userData.fc.visible = false; const tk = team.userData; delete team.userData.tick;
       const george = team.children[0].children[2]; const vl = []; for (let i = 0; i < 60; i++) vl.push([rnd(-30, 30), rnd(0.5, 3), rnd(-30, -12), pick([0xffc866, 0xffe0a0])]); g.add(twinkles(vl, 1.2, 1, 0.8));
-      const pool = new Particles(200); g.add(pool.points);
+      const pool = new Particles(200); g.add(pool.points); ctx.star(g, 2.7, 7.4, 1.3, { t: 2.4 }); // popped out of the chimney with Father Christmas
       return (t, dt) => {
         const c = (t + 5) % 9, up = smooth(0.5, 1.6, c) * (1 - smooth(6.2, 7.2, c)); fc.position.y = 4.2 + up * 1.45; fc.rotation.y = Math.sin(t * 0.8) * 0.4 * up;
         fc.userData.armR.rotation.z = 0.35 + up * (2.1 + Math.sin(t * 6) * 0.35); gf.visible = c < 6.5;
@@ -262,13 +299,14 @@ export const DAYS_A = [
   { // 12
     t: 'A Partridge in a Pear Tree', s: 'Twelve gifts go round, two turtle doves go by, five gold rings go spinning — and the partridge thinks it all a great fuss.',
     col: [0xffd34d, 0x39d353], cam: [0, 3.2, 11], look: [0, 2.9, 0],
-    build(g) {
+    build(g, ctx) {
       g.add(snowGround()); forest(g, 26, 12, 30); mesh(cyl(0.2, 0.32, 2.4, 8), M(0x5a3a22), 0, 1.2, 0, g);
       const fol = M(0x2f7a3a), tp = [];
       for (let i = 0; i < 11; i++) { const a = i * 2.4, r = i < 8 ? 1.0 : 0.3, x = Math.cos(a) * r, y = 3.2 + (i % 3) * 0.45 - 0.2 + (i >= 8 ? 0.8 : 0), z = Math.sin(a) * r; mesh(sph(rnd(0.75, 1.05), 12, 9), fol, x, y, z, g); }
       const pm = M(0xffc830, { m: 0.8, r: 0.2, e: 0xb07000, ei: 0.9 });
       for (let i = 0; i < 16; i++) { const a = rnd(TAU), y = rnd(2.4, 4.3), r = 1.75 - Math.abs(y - 3.3) * 0.5, p = grp(g, Math.cos(a) * r, y, Math.sin(a) * r); mesh(sph(0.14, 10, 8), pm, 0, 0, 0, p).scale.y = 1.15; mesh(sph(0.09, 8, 6), pm, 0, 0.14, 0, p); tp.push([p.position.x * 1.05, y + 0.3, p.position.z * 1.05, 0xfff0b0]); }
-      g.add(twinkles(tp, 1.4, 2, 0.3)); const part = put(bird(0x9a8672, 0xd8b48a), g, 0, 4.72, 0.2, 1.7); light(0xffd070, 30, 16, 0, 3.5, 3, g);
+      g.add(twinkles(tp, 1.4, 2, 0.3)); const part = put(bird(0x9a8672, 0xd8b48a), g, 0, 4.72, 0.2, 1.7); ctx.star(part, 0, 0.62, 0, { tap: part }); // under the partridge, who must be asked nicely
+      light(0xffd070, 30, 16, 0, 3.5, 3, g);
       const ring = grp(g), gifts = []; for (let i = 0; i < 12; i++) { const [a, b] = GIFT[i % GIFT.length], p = put(present(0.5 + (i % 3) * 0.1, a, b), ring, Math.cos(i / 12 * TAU) * 4, 0, Math.sin(i / 12 * TAU) * 4); gifts.push(p); }
       const doves = [0, Math.PI].map((o) => ({ b: put(bird(0xffffff, 0xf0f0f0), g, 0, 0, 0, 1.3), o }));
       const rings = []; for (let i = 0; i < 5; i++) rings.push(mesh(tor(0.33, 0.05, 8, 24), M(0xffd34d, { m: 1, r: 0.15, e: 0xa06a00, ei: 1 }), 0, 0, 0, g));
