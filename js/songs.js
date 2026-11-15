@@ -1,7 +1,7 @@
-// The full carols for Carol of the Doors: each door's phrase (see audio.js) grown into a whole song.
+// The full carols for Carol of the Doors: each door's phrase (see tunes.js) grown into a whole song.
 // Melody notation: "semitone[:beats]" from the tonic (beats default to 1), "r:beats" is a rest and "|" a bar line.
 // Bar lines are only there to be checked: validate() makes sure every bar adds up.
-import { tuneName } from './audio.js';
+import { tuneName } from './tunes.js';
 
 const J = (...s) => s.join(' | '), P = (...s) => s.join(' '); // join whole-bar sections / sections that start with a pickup
 const x = (s, n) => Array(n).fill(s);
@@ -83,14 +83,19 @@ export function chart(n) {
   const beats = total * rep, lo = Math.min(...one.map((e) => e.st)), hi = Math.max(...one.map((e) => e.st)), low = base + lo - Math.floor((23 - (hi - lo)) / 2);
   const notes = ev.map((e) => { const k = e.b - pickup, on = Math.abs(k - Math.round(k)) < 1e-6; return { t: e.b * beat, d: e.d * beat, midi: base + e.st, pad: base + e.st - low, w: on ? (k >= 0 && Math.round(k) % meter === 0 ? 3 : 2) : 1 }; });
   notes[notes.length - 1].d = Math.max(notes[notes.length - 1].d, 2.2);
-  // a simple harmony: for each bar, whichever chord covers most of its melody
+  return { n, name: tuneName(n), meter, pickup, beat, base, low, notes, acc: harmonise(ev, meter, pickup, minor, beat, base, beats), beats, len: beats * beat };
+}
+
+// A simple harmony for a melody ([{ b: beat, d: beats long, st: semitone }]): for each bar, whichever chord covers most of its notes.
+// `final` ends on the chord of the last note, as a whole song should; a lone phrase is left to settle wherever it fits best.
+export function harmonise(ev, meter, pickup, minor, beat, base, beats, final = true) {
   const acc = [], nb = Math.ceil((beats - pickup) / meter - 1e-6), cands = CHORDS[minor ? 1 : 0]; let prev = cands[0];
   for (let k = 0; k < nb; k++) {
     const b0 = pickup + k * meter, wt = new Float32Array(12); let W = 0, last = null;
     for (const e of ev) if (e.b >= b0 - 1e-6 && e.b < b0 + meter - 1e-6) { const w = e.d * (e.b - b0 < 1e-6 ? 1.6 : 1); wt[pc(e.st)] += w; W += w; last = e; }
     let best = prev; if (W) {
       let bs = -1e9; for (const c of cands) { let s = c[2] * W; for (let p = 0; p < 12; p++) s += wt[p] * (c[1].includes(p) ? 1 : -0.6); if (s > bs) { bs = s; best = c; } }
-      if (k === nb - 1) best = cands.find((c) => c[0] === pc(last.st)) ?? cands[0];
+      if (final && k === nb - 1) best = cands.find((c) => c[0] === pc(last.st)) ?? cands[0];
     }
     prev = best; const root = best[0] > 6 ? best[0] - 12 : best[0]; let bass = base - 24 + root; while (bass < 43) bass += 12;
     const third = bass + 12 + pc(best[1][1] - best[0]), fifth = bass + 19, busy = beat < 0.27;
@@ -100,7 +105,7 @@ export function chart(n) {
       else if (!busy || i % 2 === 0 || meter === 3) { if (meter === 4 && i === 2) acc.push({ t, midi: bass + 7, len: 1.2, vol: 0.06 }); acc.push({ t, midi: third, len: 0.9, vol: 0.04 }, { t, midi: fifth, len: 0.9, vol: 0.035 }); }
     }
   }
-  return { n, name: tuneName(n), meter, pickup, beat, base, low, notes, acc, beats, len: beats * beat };
+  return acc;
 }
 
 // Checks every carol: bars add up, repeats line up, and the tune fits on the 24 doors. Returns a list of problems (empty = all good).

@@ -34,7 +34,7 @@ export function createCarol({ host, dom, audio, onExit, bot = false, record = tr
   const $ = (id) => document.getElementById(id), coarse = matchMedia('(pointer: coarse)').matches;
   const ui = { score: $('g-score'), combo: $('g-combo'), tune: $('g-tune'), msg: $('g-msg'), pops: $('g-pops'), final: $('g-final'), stats: $('g-stats'), best: $('g-best'), name: $('g-name'), diff: $('c-diff'), free: $('c-free') };
   const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (record) localStorage.setItem(k, v); } catch { /* storage unavailable */ } return null; };
-  const snd = (midi, when, len, vol) => { if (!mute) audio.play(midi, when, len, vol); };
+  const snd = (midi, when, len, vol, voice) => { if (!mute) audio.play(midi, when, len, vol, voice); };
   const { fx, camera } = host, _v = new THREE.Vector3(), ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 
   // ---------- the pads: one glowing overlay per door ----------
@@ -173,7 +173,7 @@ export function createCarol({ host, dom, audio, onExit, bot = false, record = tr
       beatI = bi; pulse = 1; if (songT < 0 && bi >= -ch.meter) snd(ch.base + 12, 0, 0.25, 0.07); // count-in
       if (combo >= TUNE.dance) { const f = host.friends[((bi % 5) + 5) % 5], T = host.time(); if (T - f.userData.t0 > 1) f.userData.t0 = T; }
     }
-    while (ai < ch.acc.length && ch.acc[ai].t < songT + 0.12) { const e = ch.acc[ai++]; snd(e.midi, e.t - songT, e.len, e.vol); }
+    while (ai < ch.acc.length && ch.acc[ai].t < songT + 0.12) { const e = ch.acc[ai++]; snd(e.midi, e.t - songT, e.len * 1.3, e.vol * 1.25, 'vibe'); }
     while (ni < ch.notes.length && ch.notes[ni].t < songT + 0.12) { const nt = ch.notes[ni++]; if (!nt.tg) { snd(nt.midi, nt.t - songT, Math.max(1, nt.d * 1.8), 0.15); pads[nt.pad].flash = Math.max(pads[nt.pad].flash, 0.45); } }
     for (const p of pads) p.nr = 0;
     for (let i = ti; i < targets.length; i++) {
