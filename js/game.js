@@ -32,17 +32,33 @@ function merge(parts) {
   return out;
 }
 function houseGeo(s, wall) {
-  const { w, h, d, rh } = s, W = 0xf4f8ff, cx = w * 0.25, cz = -d * 0.15, wy = h * 0.55, wins = [];
-  const body = merge([
-    [box(w, h, d), wall, 0, h / 2, 0], [prism(w + 0.5, rh + 0.12, d + 0.5), W, 0, h - 0.04, 0], [prism(w + 0.1, rh - 0.08, d + 0.54), wall, 0, h - 0.04, 0],
-    [box(w * 0.17, h * 0.55, 0.06), 0x6b1f1f, 0, h * 0.275, d / 2 + 0.02], [box(0.62, rh * 0.95, 0.62), 0x7a4a3a, cx, h + rh * 0.58, cz], [box(0.8, 0.14, 0.8), W, cx, h + rh * 1.06, cz],
-  ]);
-  for (const sx of [-1, 1]) {
-    for (const sz of [-1, 1]) wins.push([box(w * 0.2, h * 0.3, 0.06), 0xffffff, sx * w * 0.28, wy, sz * (d / 2 + 0.03)]);
-    wins.push([box(0.06, h * 0.3, d * 0.22), 0xffffff, sx * (w / 2 + 0.03), wy, 0]);
-  }
-  wins.push([box(w * 0.14, rh * 0.25, 0.06), 0xffffff, 0, h + rh * 0.35, d / 2 + 0.3]);
-  return { body, wins: merge(wins), chim: new THREE.Vector3(cx, h + rh * 1.12, cz) };
+  // still one draw call for the body and one for the glowing windows, but now with trim, shutters, icicles, a wreath and a brick chimney
+  const { w, h, d, rh } = s, W = 0xf4f8ff, TRIM = 0xf0e8dc, cx = w * 0.25, cz = -d * 0.15, wy = h * 0.55, wins = [], wc = new THREE.Color(wall);
+  const SHUT = wc.clone().offsetHSL(0.45, -0.1, -0.12).getHex(), PLINTH = wc.clone().offsetHSL(0, -0.15, -0.14).getHex(), FRAME = 0x2a1a12, ICE = 0xd8eaff;
+  const pitch = Math.atan2(rh + 0.12, w / 2 + 0.25), barge = Math.hypot(w / 2 + 0.25, rh + 0.12);
+  const parts = [
+    [box(w, h, d), wall, 0, h / 2, 0], [box(w + 0.08, 0.24, d + 0.08), PLINTH, 0, 0.12, 0],
+    [prism(w + 0.5, rh + 0.12, d + 0.5), W, 0, h - 0.04, 0], [prism(w + 0.1, rh - 0.08, d + 0.54), wall, 0, h - 0.04, 0],
+    [box(w * 0.17, h * 0.55, 0.06), 0x6b1f1f, 0, h * 0.275, d / 2 + 0.02],
+    [box(w * 0.17 + 0.14, 0.08, 0.1), TRIM, 0, h * 0.55 + 0.04, d / 2 + 0.03], [box(w * 0.17 + 0.6, 0.12, 0.4), 0x8a8478, 0, 0.06, d / 2 + 0.2], [box(w * 0.17 + 0.62, 0.05, 0.42), W, 0, 0.14, d / 2 + 0.2],
+    [tor(w * 0.045, w * 0.016, 5, 12), 0x1f5a36, 0, h * 0.39, d / 2 + 0.07],
+    [box(0.62, rh * 0.95, 0.62), 0x7a4a3a, cx, h + rh * 0.58, cz], [box(0.72, 0.1, 0.72), 0x4a3a34, cx, h + rh * 1.02, cz], [box(0.8, 0.14, 0.8), W, cx, h + rh * 1.1, cz],
+  ];
+  for (let i = 0; i < 3; i++) parts.push([box(0.64, 0.03, 0.64), 0x5e3a2e, cx, h + rh * (0.3 + i * 0.22), cz]); // mortar courses
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push([box(0.13, h, 0.13), TRIM, sx * w / 2, h / 2, sz * d / 2]); // corner boards
+  for (const sz of [-1, 1]) for (const sx of [-1, 1]) { const b = box(barge + 0.05, 0.09, 0.07); b.rotateZ(-sx * pitch); parts.push([b, TRIM, sx * (w / 4 + 0.06), h + rh / 2, sz * (d / 2 + 0.27)]); }
+  const nI = Math.round(d * 2.4);
+  for (const sx of [-1, 1]) for (let i = 0; i < nI; i++) { const len = 0.12 + Math.abs(Math.sin(i * 2.3 + sx)) * 0.3, c = cone(0.05, len, 4); c.rotateX(Math.PI); parts.push([c, ICE, sx * (w / 2 + 0.24), h - 0.05 - len / 2, -d / 2 - 0.15 + (i + 0.5) * (d + 0.3) / nI]); }
+  const pane = (x, y, z, pw, ph, side) => { // a window: frame bars across the glass, a snowy sill, shutters either side
+    if (side) { wins.push([box(0.06, ph, pw), 0xffffff, x, y, z]); parts.push([box(0.08, ph, 0.04), FRAME, x, y, z], [box(0.08, 0.04, pw), FRAME, x, y, z], [box(0.18, 0.07, pw + 0.16), W, x, y - ph / 2 - 0.05, z]); return; }
+    wins.push([box(pw, ph, 0.06), 0xffffff, x, y, z]); const f = Math.sign(z) * 0.02;
+    parts.push([box(0.04, ph, 0.08), FRAME, x, y, z + f], [box(pw, 0.04, 0.08), FRAME, x, y, z + f], [box(pw + 0.16, 0.07, 0.18), W, x, y - ph / 2 - 0.05, z]);
+    for (const k of [-1, 1]) parts.push([box(pw * 0.42, ph * 1.1, 0.05), SHUT, x + k * pw * 0.75, y, z + f]);
+  };
+  for (const sx of [-1, 1]) { for (const sz of [-1, 1]) pane(sx * w * 0.28, wy, sz * (d / 2 + 0.03), w * 0.2, h * 0.3); pane(sx * (w / 2 + 0.03), wy, 0, d * 0.22, h * 0.3, true); }
+  pane(0, h + rh * 0.35, d / 2 + 0.3, w * 0.14, rh * 0.25);
+  wins.push([box(0.12, 0.18, 0.12), 0xffffff, w * 0.085 + 0.25, h * 0.45, d / 2 + 0.07]); // the porch lantern
+  return { body: merge(parts), wins: merge(wins), chim: new THREE.Vector3(cx, h + rh * 1.12, cz) };
 }
 // Snow hanging in the air that we fly through: wraps along z as the distance grows.
 function speedSnow(n = 1600) {

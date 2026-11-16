@@ -80,14 +80,15 @@ export const GradeShader = {
   vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
   fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes,uRayPos; uniform float uTime,uVig,uGrain,uSat,uTilt,uFocus,uBand,uRay,uLetter,uFlash,uKey,uKeyR,uKeyBlur,uTaps; uniform vec3 uLift,uGain,uRayCol; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+    vec3 S(vec2 p){ vec3 c=texture2D(tDiffuse,p).rgb; float s=c.r+c.g+c.b; return (s!=s||s>6e4)?vec3(0.):min(c,vec3(64.)); } // a stray non-finite pixel is never blurred into a block
     void main(){
-      vec2 uv=vUv; vec3 c=texture2D(tDiffuse,uv).rgb;
+      vec2 uv=vUv; vec3 c=S(uv);
       float b=uTilt*smoothstep(uBand,uBand+.32,abs(uv.y-uFocus))+uKeyBlur;
       if(b>.4){ vec3 acc=c; float w=1.; float a0=h(uv*uRes+fract(uTime))*6.2832;
-        for(int i=0;i<16;i++){ float fi=float(i); if(fi>=uTaps) break; float a=a0+fi*2.39996; float r=sqrt((fi+.5)/uTaps)*b; acc+=texture2D(tDiffuse,uv+vec2(cos(a),sin(a))*r/uRes).rgb; w+=1.; }
+        for(int i=0;i<16;i++){ float fi=float(i); if(fi>=uTaps) break; float a=a0+fi*2.39996; float r=sqrt((fi+.5)/uTaps)*b; acc+=S(uv+vec2(cos(a),sin(a))*r/uRes); w+=1.; }
         c=acc/w; }
       if(uRay>.001){ vec2 d=(uv-uRayPos)*(1./30.); vec2 p=uv-d*h(uv*uRes)*.5; float dec=1.; vec3 r=vec3(0.);
-        for(int i=0;i<30;i++){ p-=d; vec3 s=texture2D(tDiffuse,p).rgb; r+=max(s-vec3(.75),vec3(0.))*dec; dec*=.95; }
+        for(int i=0;i<30;i++){ p-=d; vec3 s=S(p); r+=max(s-vec3(.75),vec3(0.))*dec; dec*=.95; }
         c+=r*uRayCol*uRay*.12; }
       float l=dot(c,vec3(.2126,.7152,.0722)); c=mix(vec3(l),c,uSat); c=c*uGain+uLift*(1.-clamp(l*2.,0.,1.));
       vec2 q=uv-.5; q.x*=uRes.x/uRes.y; c*=1.-uVig*smoothstep(.3,1.05,length(q));

@@ -103,7 +103,7 @@ export const DAYS_B = [
       ctx.star(w, 0.25, -0.7, 0.45, { t: 4.2 }); // stirred up by the first shake
       const rim = mesh(sph(R * 1.002, 48, 32), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: `varying vec3 vN,vV; void main(){ vec4 mv=modelViewMatrix*vec4(position,1.); vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }`,
-        fragmentShader: `varying vec3 vN,vV; void main(){ float f=pow(1.-max(dot(vN,vV),0.),2.6); float h=pow(max(dot(vN,normalize(vec3(-.5,.6,.6))),0.),60.); gl_FragColor=vec4(vec3(.65,.8,1.)*f*.9+vec3(1.)*h*1.5,1.); }` }), 0, C, 0, g);
+        fragmentShader: `varying vec3 vN,vV; void main(){ float f=pow(clamp(1.-dot(vN,vV),0.,1.),2.6); float h=pow(max(dot(vN,normalize(vec3(-.5,.6,.6))),0.),60.); gl_FragColor=vec4(vec3(.65,.8,1.)*f*.9+vec3(1.)*h*1.5,1.); }` }), 0, C, 0, g);
       for (const x of [-4.6, 4.8]) { put(candle(0.9, 0xc8102e), g, x, 0, 0.8, 2); light(0xffb050, 12, 10, x, 2.2, 1, g); }
       const george = face(put(monkey(), g, 3.4, 0, 1.6, 1.15), 0, 0);
       return (t) => {
@@ -224,7 +224,7 @@ export const DAYS_B = [
       return (t) => {
         nod(cow, t, 0.1, 0.8); nod(dk, t + 2, 0.12, 0.6); nod(ms, t + 1, 0.1, 0.5); fl.forEach((f, i) => nod(f, t + i * 2, 0.2, 0.7)); lan.rotation.z = Math.sin(t * 1.1) * 0.12;
         const k = smooth(2, 16, t); st.scale.setScalar(0.45 + k * 0.75); bm.material.opacity = 0.09 * k; hl.material.opacity = 0.2 + 0.35 * k + Math.sin(t * 1.5) * 0.05;
-        doves.forEach((d, i) => { d.userData.head.rotation.y = Math.round(Math.sin(t * 0.8 + i * 2)) * 0.6; d.userData.b.scale.y = 1 + Math.sin(t * 2 + i) * 0.04; }); dk.userData.head.children[5].rotation.z = Math.sin(t * 5) * 0.2;
+        doves.forEach((d, i) => { d.userData.head.rotation.y = Math.round(Math.sin(t * 0.8 + i * 2)) * 0.6; d.userData.b.scale.y = 1 + Math.sin(t * 2 + i) * 0.04; }); dk.userData.ears[1].rotation.z = Math.sin(t * 5) * 0.2;
       };
     },
   },

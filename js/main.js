@@ -22,6 +22,7 @@ import { createBand, glockenspiel } from './band.js';
 import { HURON } from './tunes.js';
 import { Q, initLook, GradeShader, HOME_GRADE, applyGrade, tierUniforms, portalRig, captureLoop, windowMaterial, watchFrames, resetWatch, applyPendingDrop, LW } from './look.js';
 import { createSky, streak, RIDDLES } from './stars.js';
+import { createVillage, pieceName } from './village.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -44,6 +45,10 @@ let found = new Set(); try { found = new Set(JSON.parse(localStorage.getItem(KEY
 let finaleDone = false; try { finaleDone = localStorage.getItem(KEY + '-finale') === '1'; } catch { /* storage unavailable */ }
 const saveStars = () => { try { localStorage.setItem(KEY + '-stars', JSON.stringify([...found])); localStorage.setItem(KEY + '-finale', finaleDone ? '1' : '0'); } catch { /* ignore */ } };
 const dayOfDec = () => (isDec() ? today().getDate() : 0);
+// My Village: each door opened in December brings its building; ?allvillage hands over all 24 for a look
+const villageOpen = (n) => params.has('allvillage') || (opened.has(n) && canOpen(n));
+let villageSet = {}; const readVillage = () => { try { villageSet = JSON.parse(localStorage.getItem(KEY + '-village') || '{}'); } catch { villageSet = {}; } };
+const waiting = () => { readVillage(); return Array.from({ length: 24 }, (_, i) => i + 1).filter((n) => villageOpen(n) && !villageSet[n]).length; };
 const tomorrow = () => { const d = dayOfDec(); return d >= 1 && d < 24 && opened.has(d) ? d + 1 : 0; }; // its keyhole glows once today's door is open
 
 // ---------- renderer ----------
@@ -54,6 +59,8 @@ $('stage').appendChild(renderer.domElement); initLook(renderer);
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(45, 1, 0.1, 600);
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 const rp = new RenderPass(scene, camera), bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.65, 0.7, 0.88), grade = new ShaderPass(GradeShader), GU = grade.uniforms;
+// a single non-finite pixel (a shader edge case) would be blurred by the bloom into a flashing black square: the bloom never sees one
+{ const hp = bloom.materialHighPassFilter; hp.fragmentShader = hp.fragmentShader.replace('vec4 texel = texture2D( tDiffuse, vUv );', 'vec4 texel = texture2D( tDiffuse, vUv ); float sum = texel.r + texel.g + texel.b; texel = ( sum != sum || sum > 6e4 ) ? vec4( 0.0 ) : min( texel, vec4( 64.0 ) );'); hp.needsUpdate = true; }
 composer.addPass(rp); composer.addPass(bloom); composer.addPass(grade); composer.addPass(new OutputPass());
 tierUniforms(GU); applyGrade(GU, HOME_GRADE, 1, 0.22);
 
@@ -143,7 +150,8 @@ const fxBurst = (o, n) => { const p = o.getWorldPosition(new THREE.Vector3()); f
 const sm1 = friend(put(snowman({ scarf: 0xc8102e }), scene, -10.0, gy(-10, 6), 6, 1.35, 0.45), 'The snowman tips his hat. “Not long now!”', 0.9, 1);
 const sm2 = friend(put(snowman({ scarf: 0x39d353, hat: 'bobble' }), scene, -8.9, gy(-8.9, 7.9), 7.9, 0.8, 0.3), '“I’m only little, but I’m very good at waiting.”', 1.2, 3);
 const lpL = put(lampPost(3.3), scene, -7.4, 0, 8.2), lpR = put(lampPost(3.3), scene, 7.4, 0, 8.2);
-const george = friend(put(monkey(), scene, -7.4, 3.84, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
+for (const [s, y] of [[1, 3.99], [0.6, 4.05]]) { const c = mesh(sph(0.3 * s, 14, 10), WHITE, -7.4, y, 8.2, scene); c.scale.y = 0.38; } // a cushion of snow on the lamp for George to sit in
+const george = friend(put(monkey(), scene, -7.4, 3.88, 8.2, 0.85, 0.3), () => pick(['George does a somersault!', '“Ooh ooh! Is it December yet?” asks George.', 'George waves both arms. And his tail.']), 1.1, 5);
 george.userData.click = () => { audio.chime(5); fxBurst(george, 40); startGame('swing'); }; // George Swings
 const mse = friend(faceB(put(moose(), scene, -13.1, gy(-13.1, 4), 4, 1.1), -4, 30), 'Monty the moose nods, slowly and wisely, as moose do. His antler lights twinkle.', 0.25, 0);
 const cow = friend(faceB(put(highlandCow(), scene, 9.6, gy(9.6, 7.4), 7.4, 1.05), -2, 30), '“Mooo!” says Hamish the Highland cow, from somewhere under his fringe.', 0.3, 2);
@@ -169,7 +177,7 @@ const shoots = []; function shoot() { shoots.push({ x: rnd(-40, 40), y: rnd(26, 
 // ---------- UI ----------
 let toastT; function toast(msg, ms = 3200) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), ms); }
 function status() {
-  const d = today(), m = d.getMonth(), day = d.getDate(), el = $('status');
+  const d = today(), m = d.getMonth(), day = d.getDate(), el = $('status'), w = waiting(); $('vbadge').textContent = w || ''; $('vbadge').hidden = !w;
   if (m === 11) {
     const st = ` · ✦ ${found.size} of 24 stars home`;
     if (day >= 25) el.textContent = 'Merry Christmas! Every door is open to you.' + st;
@@ -180,7 +188,7 @@ function status() {
   }
 }
 $('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
-$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); }; $('carol').onclick = () => { $('carol').blur(); startGame('carol'); }; $('band').onclick = () => { $('band').blur(); startGame('band'); };
+$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); }; $('carol').onclick = () => { $('carol').blur(); startGame('carol'); }; $('band').onclick = () => { $('band').blur(); startGame('band'); }; $('village').onclick = () => { $('village').blur(); startGame('village'); };
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
 
 // ---------- tweens & camera ----------
@@ -213,7 +221,7 @@ async function openDoor(d) {
       applyEffect(d.n, frags, k);
       for (let i = 0; i < 5; i++) { const f = pick(frags), p = f.m.getWorldPosition(v1); if (f.m.scale.x > 0.02) fx.emit(p.x, p.y, p.z + 0.1, rnd(-0.6, 0.6), rnd(-0.3, 1), rnd(0.2, 1.4), pick([...def.col, 0xffe9a0]), rnd(0.6, 1.4), rnd(0.5, 1.1), 0.5); }
     });
-    frags.forEach((f) => { d.group.remove(f.m); f.m.geometry.dispose(); }); d.opened = true; opened.add(d.n); save();
+    frags.forEach((f) => { d.group.remove(f.m); f.m.geometry.dispose(); }); d.opened = true; opened.add(d.n); save(); d.fresh = true;
   }
   // and step through: the camera glides into the doorway until the world behind it fills the screen
   const p0 = camPos.clone(), l0 = camLook.clone(), end = new THREE.Vector3(d.x, wp.y, zEnd), endLook = new THREE.Vector3(d.x, wp.y, -10);
@@ -225,6 +233,7 @@ function enterDay(d, day) {
   if (fromDoor) { cur.blend = { pos: portal.rig.E0.clone(), quat: portal.rig.q.clone(), fov: camera.fov, t0: cur.t, dur: 2.6 }; letter = 1; flash = 0.35; }
   portal = null; gradeK = fromDoor ? 0 : 1; resetWatch();
   $('num').textContent = d.n; $('title').textContent = def.t; $('text').textContent = def.s; $('tune').textContent = '♪ ' + tuneName(d.n) + ' · yours to play in Carol of the Doors';
+  $('villageline').textContent = `🏘 For your village: ${pieceName(d.n)}`;
   starLine(); document.body.classList.add('day'); audio.tune(d.n);
 }
 function starLine() {
@@ -247,6 +256,7 @@ async function leaveDay() {
   portal = null; setWindow(d, day); day.dispose(); cur = null; gradeK = 0; letter = 0; onTierDrop();
   mode = 'home'; busy = false; document.body.classList.remove('focus'); status();
   if (day.justFound) flyHome(d, day.n);
+  if (d.fresh) { d.fresh = false; setTimeout(() => { if (view === 'main' && !busy) toast(`🏘 ${pieceName(d.n)} is waiting for your village — tap “My village” to build it.`, 5200); }, day.justFound ? 3600 : 900); }
   if (day.n === 24 && found.has(24) && !finaleDone && isDec()) setTimeout(() => finale(), 2600);
 }
 // the found star streaks out of its doorway and up to its place in the constellation
@@ -294,15 +304,16 @@ async function finale() {
 
 // ---------- the games: Midnight Delivery (the sleigh), George Swings and Carol of the Doors (played on the house itself) ----------
 const host = { scene, camera, camPos, camLook, doors, fx, shoot, friends: [sm1, sm2, george, mse, cow], band: { sm1, sm2, george, mse, cow }, prop: glk, gy, setlist, total: 25, toast, roof: roofTw.userData.u, roofSize: 2.1, aur: aur.material.uniforms, aurGain: 0.8, unlocked: carolOpen, time: () => T, world: (dt) => updateMain(dt) };
-let game = null; const games = {}, MAKE = { delivery: createGame, swing: createSwing, carol: (o) => createCarol({ song: +params.get('carol') || 0, diff: params.has('full') ? 1 : undefined, ...o, host }), band: (o) => createBand({ song: +params.get('band') || 0, host, ...o }) };
+let game = null; const games = {}, MAKE = { delivery: createGame, swing: createSwing, carol: (o) => createCarol({ song: +params.get('carol') || 0, diff: params.has('full') ? 1 : undefined, ...o, host }), band: (o) => createBand({ song: +params.get('band') || 0, host, ...o }),
+  village: (o) => createVillage({ ...o, host: { saveKey: KEY + '-village', unlocked: villageOpen, isNew: (n) => n === dayOfDec(), next: () => { const d = dayOfDec(); return d >= 1 && d < 24 ? d + 1 : 0; }, placed: () => status() } }) };
 const setPR = (p) => { PR = p; renderer.setPixelRatio(p); composer.setPixelRatio(p); resize(); };
 const dayKey = () => { const d = today(); return params.get('seed') || `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const newGame = (kind = 'delivery', o = {}) => MAKE[kind]({ dom: renderer.domElement, audio, seed: dayKey(), onExit: leaveGame, setPR, getPR: () => PR, bot: params.has('bot'), adaptive: !STEPS, ...o });
-function enterGame(kind = 'delivery') { game = games[kind] ??= newGame(kind); document.body.classList.toggle('swing', kind === 'swing'); document.body.classList.toggle('carol', kind === 'carol'); document.body.classList.toggle('band', kind === 'band'); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
+function enterGame(kind = 'delivery') { game = games[kind] ??= newGame(kind); document.body.classList.toggle('swing', kind === 'swing'); document.body.classList.toggle('carol', kind === 'carol'); document.body.classList.toggle('band', kind === 'band'); document.body.classList.toggle('vill', kind === 'village'); view = 'game'; rp.scene = game.scene; rp.camera = game.camera; resize(); game.start(); document.body.classList.add('game'); }
 async function startGame(kind = 'delivery') {
   if (busy || view !== 'main') return; busy = true; mode = 'seq'; audio.unlock(); document.body.classList.add('focus');
   if (kind === 'carol' || kind === 'band') { camPos.copy(camera.position); camLook.copy(homeLook); return enterGame(kind); } // no journey: the camera just settles on the house front (or leans in to the band)
-  const sw = kind === 'swing', tgt = sw ? george.position.clone().setY(george.userData.y0 + 0.8) : team.position, from = camera.position.clone(), to = from.clone().lerp(tgt, sw ? 0.72 : 0.3); to.y += sw ? 0.6 : 4; // close in on George (or rise towards the sleigh), then slip through a snow cloud
+  const sw = kind === 'swing', tgt = sw ? george.position.clone().setY(george.userData.y0 + 0.8) : kind === 'village' ? new THREE.Vector3(0, 9, 14) : team.position, from = camera.position.clone(), to = from.clone().lerp(tgt, sw ? 0.72 : 0.3); to.y += sw ? 0.6 : 4; // close in on George (or rise towards the sleigh), then slip through a snow cloud
   if (sw) setTimeout(() => { george.userData.t0 = T; }, 500); // one somersault for luck
   setTimeout(() => $('mist').classList.add('on'), 1150);
   await tween(1.6, (k) => { camPos.lerpVectors(from, to, easeIO(k)); camLook.lerpVectors(homeLook, tgt, easeIO(Math.min(1, k * 1.4))); });
@@ -320,7 +331,7 @@ async function leaveGame() {
     mode = 'home'; busy = false; document.body.classList.remove('focus'); status(); return;
   }
   $('mist').classList.add('on'); await tween(0.5, () => {});
-  game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game', 'swing'); $('mist').classList.remove('on');
+  game.stop(); view = 'main'; rp.scene = scene; rp.camera = camera; resize(); document.body.classList.remove('game', 'swing', 'vill'); $('mist').classList.remove('on');
   const from = new THREE.Vector3(0, 30, home.z + 8), fl2 = new THREE.Vector3(0, 34, -40);
   await tween(2.4, (k) => { camPos.lerpVectors(from, home, easeIO(k)); camLook.lerpVectors(fl2, homeLook, easeIO(k)); });
   mode = 'home'; busy = false; document.body.classList.remove('focus'); status();
@@ -438,7 +449,7 @@ async function start() {
   const o = +params.get('open'); if (params.has('shot')) $('veil').remove();
   const ck = +params.get('click'); if (ck) setTimeout(() => openDoor(doors.find((x) => x.n === ck)), STEPS ? 0 : 600);
   if (STEPS) (async () => { for (let i = 0; i < STEPS; i++) { if (i === +params.get("leave")) leaveDay(); tick(0.05); await new Promise((r) => setTimeout(r, 0)); } })();
-  if (params.has('game') || params.has('swing') || params.has('carol') || params.has('band')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); camPos.copy(home); camLook.copy(homeLook); enterGame(params.has('band') ? 'band' : params.has('carol') ? 'carol' : params.has('swing') ? 'swing' : 'delivery'); }
+  if (params.has('game') || params.has('swing') || params.has('carol') || params.has('band') || params.has('village')) { busy = true; mode = 'seq'; document.body.classList.add('focus'); camPos.copy(home); camLook.copy(homeLook); enterGame(params.has('village') ? 'village' : params.has('band') ? 'band' : params.has('carol') ? 'carol' : params.has('swing') ? 'swing' : 'delivery'); }
   if (o >= 1 && o <= 24) { busy = true; mode = 'seq'; document.body.classList.add('focus'); const d = doors.find((x) => x.n === o); camPos.set(d.x, d.y + 1, 7.4); camLook.set(d.x, d.y + 1, 0); enterDay(d); }
   const pk = +params.get('peek'); if (pk) setTimeout(() => peekDoor(doors.find((x) => x.n === pk)), 600);
   if (params.has('finale')) setTimeout(() => finale(), STEPS ? 0 : 900);

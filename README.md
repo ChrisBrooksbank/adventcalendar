@@ -42,6 +42,7 @@ Except this calendar has a few extracurricular activities. Father Christmas need
 | 🐒 **George Swings** | Hook fairy lights with tinsel, build momentum, and release at just the right moment. George supplies the enthusiasm; you supply the timing. |
 | 🎹 **Carol of the Doors** | Follow a carol on the glowing doors, choose gentle or full notes, or switch to free play and make the house your instrument. |
 | 🎶 **The Friends’ Concert** | Let the friends perform, tap the musicians for a reaction, and ask for another carol. The Huron Carol is always on the programme. |
+| 🏘 **My Village** | Every door opened in December brings a building for a snowy village of your own. Place and turn the pieces, keep good neighbours together for village cheer, watch villagers come out to walk, and plan a spot for tomorrow’s piece. |
 | 🌌 **Winter atmosphere** | Falling snow, aurora, stars, bloom lighting, and clickable characters make waiting for December rather pleasant. |
 | 💾 **A house that remembers** | Opened doors and game records are saved locally in your browser. Delivery and swinging challenges use a daily seed. |
 

@@ -42,8 +42,10 @@ function softClip(n = 2049) {
 }
 
 // Everything that makes sound, built on any audio context (the live one, or an offline one for sound-test.html to measure).
-export function createEngine(ctx, { clip = true, reverb = true } = {}) {
-  const top = Math.min(ctx.sampleRate * 0.45, 15000);
+// lite (phones): fewer partials per note, a shorter room, no oversampling, and every sound scheduled a moment ahead,
+// so a busy main thread or a small audio buffer never makes notes start late (which is what a stutter is).
+export function createEngine(ctx, { clip = true, reverb = true, lite = false } = {}) {
+  const top = Math.min(ctx.sampleRate * 0.45, lite ? 9000 : 15000), LEAD = lite ? 0.04 : 0, now = () => ctx.currentTime + LEAD;
   const gain = (v) => { const g = ctx.createGain(); g.gain.value = v; return g; };
   const filter = (type, f, q = 0.7, db = 0) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; b.gain.value = db; return b; };
   const chain = (...n) => { for (let i = 1; i < n.length; i++) n[i - 1].connect(n[i]); return n[n.length - 1]; };
@@ -52,9 +54,9 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
   // ---------- the mix ----------
   const out = gain(1), sum = gain(1); out.connect(ctx.destination);
   // No compressor: the levels leave headroom instead, so every attack arrives exactly as it was struck. Only a freak pile-up meets the clip.
-  if (clip) { const shaper = ctx.createWaveShaper(); shaper.curve = softClip(); shaper.oversample = '2x'; chain(sum, filter('highshelf', 7000, 0.7, -2.5), gain(0.5 * TRIM), shaper, out); } // the curve expects half scale
+  if (clip) { const shaper = ctx.createWaveShaper(); shaper.curve = softClip(); shaper.oversample = lite ? 'none' : '2x'; chain(sum, filter('highshelf', 7000, 0.7, -2.5), gain(0.5 * TRIM), shaper, out); } // the curve expects half scale
   else sum.connect(out);
-  const verb = ctx.createConvolver(); verb.buffer = impulse(ctx); verb.connect(sum);
+  const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, lite ? 1.5 : 2.6); verb.connect(sum);
   const bus = (level, send) => { const g = gain(level); g.connect(sum); if (reverb) chain(g, gain(send), verb); return g; };
   const music = bus(0.5, 0.3), sfx = bus(0.5, 0.22), amb = bus(0.5, 0.1);
 
@@ -64,23 +66,23 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
   // ---------- voices ----------
   // One struck note. Unless told otherwise it sits across the stereo field by pitch, low notes to the left, like a keyboard.
   function strike(kind, midi, when = 0, len = 1.4, vol = 0.2, pan, dest = music) {
-    const v = VOICES[kind], t = ctx.currentTime + Math.max(0, when), f = hz(midi);
+    const v = VOICES[kind], t = now() + Math.max(0, when), f = hz(midi);
     const o = gain(vol * v.level * clamp(1.15 - (midi - 72) / 70, 0.6, 1.15)); // very high notes are eased back: they carry further
     o.connect(panned(dest, pan ?? clamp((midi - 76) / 50, -0.4, 0.4) + rnd(-0.06, 0.06)));
     for (const [mul, amp, dec, cents] of v.partials) {
-      const pf = f * mul; if (pf > top) continue;
+      const pf = f * mul; if (pf > top || (lite && amp < 0.1)) continue;
       const osc = ctx.createOscillator(), g = gain(0), end = t + Math.max(0.05, len * dec);
       osc.frequency.value = pf; if (cents) osc.detune.value = cents;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + v.attack); g.gain.exponentialRampToValueAtTime(amp * 0.002, end);
       chain(osc, g, o); osc.start(t); osc.stop(end + 0.03);
     }
-    if (v.tick) { const g = gain(0), d = 0.014; g.gain.setValueAtTime(v.tick, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); chain(noise(t, t + d + 0.01), filter('bandpass', clamp(f * 4, 1800, 6500), 1.5), g, o); }
+    if (v.tick && !lite) { const g = gain(0), d = 0.014; g.gain.setValueAtTime(v.tick, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); chain(noise(t, t + d + 0.01), filter('bandpass', clamp(f * 4, 1800, 6500), 1.5), g, o); }
   }
   const box = (...a) => strike('box', ...a), vibe = (...a) => strike('vibe', ...a), glock = (...a) => strike('glock', ...a);
 
   // One shake of the sleigh bells: the pellet rattles two or three times against a cluster of narrow, ringing bands.
   function sleigh(when = 0, vol = 0.05, pan = rnd(-0.5, 0.5), dest = sfx) {
-    const t = ctx.currentTime + Math.max(0, when), o = gain(vol * SLEIGH), env = gain(0), hits = [1, 0.55, 0.3]; let th = t;
+    const t = now() + Math.max(0, when), o = gain(vol * SLEIGH), env = gain(0), hits = [1, 0.55, 0.3]; let th = t;
     o.connect(panned(dest, pan));
     hits.forEach((a, i) => { env.gain.setTargetAtTime(a, th, 0.0015); env.gain.setTargetAtTime(0, th + 0.006, i < hits.length - 1 ? 0.012 : 0.05); th += rnd(0.022, 0.04); });
     chain(noise(t, t + 0.45), filter('highpass', 1800), env);
@@ -91,7 +93,7 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
   // ---------- effects ----------
   // A pitched sweep: f0 to f1 (then on to f2), optionally through a filter and with a wobble [rate, cents] that dies away.
   function tone({ type = 'sine', f0, f1 = f0, f2, len, vol, attack = 0.005, pan = 0, flt, wobble, when = 0, dest = sfx }) {
-    const t = ctx.currentTime + when, osc = ctx.createOscillator(), g = gain(0); osc.type = type;
+    const t = now() + when, osc = ctx.createOscillator(), g = gain(0); osc.type = type;
     osc.frequency.setValueAtTime(f0, t); osc.frequency.exponentialRampToValueAtTime(f1, t + (f2 ? len * 0.55 : len)); if (f2) osc.frequency.exponentialRampToValueAtTime(f2, t + len);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     if (wobble) { const l = ctx.createOscillator(), lg = gain(0); l.frequency.value = wobble[0]; lg.gain.setValueAtTime(wobble[1], t); lg.gain.exponentialRampToValueAtTime(wobble[1] * 0.1, t + len); chain(l, lg).connect(osc.detune); l.start(t); l.stop(t + len + 0.05); }
@@ -99,7 +101,7 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
   }
   // A breath of filtered noise, sweeping f0 to f1 and, if asked, across the stereo field.
   function burst({ type = 'bandpass', f0, f1 = f0, q = 0.7, len, vol, attack = 0.2, pan = 0, pan1, when = 0, dest = sfx }) {
-    const t = ctx.currentTime + when, f = filter(type, f0, q), g = gain(0), p = panned(dest, pan);
+    const t = now() + when, f = filter(type, f0, q), g = gain(0), p = panned(dest, pan);
     f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + len);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + len * attack); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     if (pan1 !== undefined && p.pan) { p.pan.setValueAtTime(pan, t); p.pan.linearRampToValueAtTime(pan1, t + len); }
@@ -127,6 +129,7 @@ export function createEngine(ctx, { clip = true, reverb = true } = {}) {
   }
 
   return {
+    lead: LEAD,
     mute(on) { out.gain.setTargetAtTime(on ? 0 : 1, ctx.currentTime, 0.015); }, // a quick fade, never a click
     // A door's carol phrase: the melody on the music box, leaning on the beat, over a warm bass and harmony.
     tune(n) {
@@ -199,8 +202,14 @@ const TRIM = 1.5, SLEIGH = 11, WIND = 0.065; // levels, set by measuring in soun
 
 // ---------- the one the house plays through ----------
 let ctx, eng, enabled = true;
+const LITE = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent) || new URLSearchParams(location.search).has('litesound');
 function init() {
-  if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false; ctx = new AC(); eng = createEngine(ctx); }
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
+    // phones get bigger audio buffers (latencyHint 'playback'): a little more delay, which the games already allow for, but no dropouts
+    try { ctx = new AC(LITE ? { latencyHint: 'playback' } : undefined); } catch { ctx = new AC(); }
+    eng = createEngine(ctx, { lite: LITE });
+  }
   if (ctx.state === 'suspended') ctx.resume();
   return true;
 }
@@ -211,6 +220,6 @@ export const audio = {
   tuneLen: (n) => MELODY[n - 1].length,
   now() { return enabled && ctx && ctx.state === 'running' ? ctx.currentTime : null; }, // the audio clock, when there is one to keep time by
   wind(level) { if (init()) eng.wind(enabled ? level : 0); },
-  latency() { return ctx ? Math.min(0.3, ctx.outputLatency || ctx.baseLatency || 0) : 0; }, // how long after the audio clock a sound is actually heard
+  latency() { return ctx ? Math.min(0.35, (ctx.outputLatency || ctx.baseLatency || 0) + (eng?.lead ?? 0)) : 0; }, // how long after the audio clock a sound is actually heard
 };
 for (const k of ['tune', 'chime', 'locked', 'magic', 'tuneNote', 'jingle', 'pff', 'whoosh', 'thud', 'twinkle', 'fanfare', 'boing', 'creak', 'snap', 'play', 'bells', 'shake', 'cowbell', 'drum', 'click']) audio[k] = (...a) => { if (enabled && init()) eng[k](...a); };
