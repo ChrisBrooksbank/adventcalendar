@@ -23,6 +23,7 @@ import { HURON } from './tunes.js';
 import { Q, initLook, GradeShader, HOME_GRADE, applyGrade, tierUniforms, portalRig, captureLoop, windowMaterial, watchFrames, resetWatch, applyPendingDrop, LW } from './look.js';
 import { createSky, streak, RIDDLES } from './stars.js';
 import { createVillage, pieceName } from './village.js';
+import { readGift, giftMaker } from './gift.js';
 
 // ---------- date & saved state ----------
 const params = new URLSearchParams(location.search), pd = params.get('date');
@@ -32,7 +33,9 @@ function today() {
 }
 const isDec = () => today().getMonth() === 11;
 const canOpen = (n) => isDec() && n <= today().getDate();
-const KEY = `advent-${today().getFullYear()}${pd ? '-preview' : ''}`;
+// a gift link (#gift=…) carries a giver's notes; each gift keeps its own progress beside your own calendar
+const giving = await readGift(); addEventListener('hashchange', () => location.reload());
+const KEY = `advent-${today().getFullYear()}${giving ? '-gift-' + giving.id : ''}${pd ? '-preview' : ''}`;
 let opened = new Set(); try { opened = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch { /* storage unavailable */ }
 let lastYear = new Set(); try { lastYear = new Set(JSON.parse(localStorage.getItem(`advent-${today().getFullYear() - 1}`) || '[]')); } catch { /* storage unavailable */ }
 // Carol of the Doors: a door's carol is yours once you have opened it (last December's stay until the next one begins); two are always there to try
@@ -189,6 +192,8 @@ function status() {
 }
 $('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
 $('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); }; $('carol').onclick = () => { $('carol').blur(); startGame('carol'); }; $('band').onclick = () => { $('band').blur(); startGame('band'); }; $('village').onclick = () => { $('village').blur(); startGame('village'); };
+const maker = giftMaker({ preset: null }); $('gift-btn').onclick = () => { $('gift-btn').blur(); audio.unlock(); maker.open(); };
+if (giving) { if (giving.to) { $('h1').textContent = `An Advent House for ${giving.to}`; document.title = `An Advent House for ${giving.to}`; } $('gift-btn').firstChild.textContent = '🎁 Make your own gift'; }
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
 
 // ---------- tweens & camera ----------
@@ -234,6 +239,7 @@ function enterDay(d, day) {
   portal = null; gradeK = fromDoor ? 0 : 1; resetWatch();
   $('num').textContent = d.n; $('title').textContent = def.t; $('text').textContent = def.s; $('tune').textContent = '♪ ' + tuneName(d.n) + ' · yours to play in Carol of the Doors';
   $('villageline').textContent = `🏘 For your village: ${pieceName(d.n)}`;
+  const note = giving?.notes[d.n - 1]?.trim(); $('note').hidden = !note; if (note) { $('note-text').textContent = note; $('note-from').textContent = giving.from ? '— ' + giving.from : ''; $('note-from').hidden = !giving.from; }
   starLine(); document.body.classList.add('day'); audio.tune(d.n);
 }
 function starLine() {
@@ -346,7 +352,7 @@ function pickAt(e) {
 }
 let lastTrail = 0;
 addEventListener('pointermove', (e) => {
-  mx = (e.clientX / innerWidth) * 2 - 1; my = (e.clientY / innerHeight) * 2 - 1; idle = 0; if (view !== 'main' || mode !== 'home') return;
+  mx = (e.clientX / innerWidth) * 2 - 1; my = (e.clientY / innerHeight) * 2 - 1; idle = 0; if (view !== 'main' || mode !== 'home' || maker.isOpen) return;
   const h = pickAt(e); hover = h?.door ?? null; renderer.domElement.style.cursor = h ? 'pointer' : 'default';
   if (T - lastTrail > 0.025) { lastTrail = T; const p = ray.ray.at(16, v1); fx.emit(p.x, p.y, p.z, rnd(-0.3, 0.3), rnd(-0.6, 0.1), rnd(-0.3, 0.3), pick([0xffe9a0, 0xffffff, 0xbfe0ff]), rnd(0.5, 1.1), rnd(0.35, 0.7), 0.6); }
 });
@@ -445,6 +451,7 @@ async function start() {
   buildDoors(); scene.traverse((o) => { if (o.userData.tick) ticks.push(o.userData.tick); });
   sky.set(found, (n) => canOpen(n)); // the stars already home, and faint gaps where a missed door's star could still be fetched
   resize(); status(); frame(); document.body.classList.add('ready');
+  if (giving) { const who = giving.from ? ` from ${giving.from.replace(/^(love|with love|lots of love),?\s*/i, '')}` : '', n = giving.notes.filter((t) => t.trim()).length; setTimeout(() => toast(`🎁 A gift${who}: ${n} little note${n === 1 ? '' : 's'} hidden behind the doors, one for each day it opens.`, 7000), isDec() ? 1500 : 8800); }
   if (!isDec()) setTimeout(() => toast('Every door is sleeping until December — but the snow, the stars and a few friends are wide awake. Try clicking them.', 7000), 1500);
   const o = +params.get('open'); if (params.has('shot')) $('veil').remove();
   const ck = +params.get('click'); if (ck) setTimeout(() => openDoor(doors.find((x) => x.n === ck)), STEPS ? 0 : 600);

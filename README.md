@@ -43,6 +43,7 @@ Except this calendar has a few extracurricular activities. Father Christmas need
 | 🎹 **Carol of the Doors** | Follow a carol on the glowing doors, choose gentle or full notes, or switch to free play and make the house your instrument. |
 | 🎶 **The Friends’ Concert** | Let the friends perform, tap the musicians for a reaction, and ask for another carol. The Huron Carol is always on the programme. |
 | 🏘 **My Village** | Every door opened in December brings a building for a snowy village of your own. Place and turn the pieces, keep good neighbours together for village cheer, watch villagers come out to walk, and plan a spot for tomorrow’s piece. |
+| 🎁 **Make it a gift** | Write a note behind any door, sign it, and send the calendar to someone. Each note waits until its day, then appears on a handwritten card when that door's world opens. The notes travel in the link itself, with no account and no server. |
 | 🌌 **Winter atmosphere** | Falling snow, aurora, stars, bloom lighting, and clickable characters make waiting for December rather pleasant. |
 | 💾 **A house that remembers** | Opened doors and game records are saved locally in your browser. Delivery and swinging challenges use a daily seed. |
 
@@ -52,7 +53,7 @@ Except this calendar has a few extracurricular activities. Father Christmas need
 2. **Click or tap a numbered door.** During December, doors up to today’s date can open. Come back tomorrow for the next one.
 3. **Turn up the sound.** Interact with the page to allow browser audio; the **♪** button toggles sound.
 4. **Meet the neighbours.** Click the friends outside. George is particularly keen to demonstrate something inadvisable.
-5. **Try the four buttons above the house.** The calendar is only the beginning.
+5. **Try the buttons above the house.** The calendar is only the beginning.
 
 Visiting outside December? The house and its activities are still worth a trip. For a tour with every calendar door available, use the [Christmas Eve preview](https://chrisbrooksbank.github.io/adventcalendar/?date=2026-12-24). Preview door progress is saved separately from ordinary calendar progress.
 
@@ -99,6 +100,7 @@ Append these query strings to the live or local URL:
 | `?swing` | Start George Swings. |
 | `?carol` | Open Carol of the Doors. |
 | `?band` | Start The Friends’ Concert. |
+| `#gift=…` | Open a gift calendar (made with **🎁 Make it a gift**). Combine with `?date=2026-12-24&open=24` to read door 24's note straight away. |
 
 ## Behind the fairy lights
 
@@ -113,6 +115,7 @@ js/
   doors.js          Door fragments, opening effects, and portal shader
   look.js           Quality tiers, shadows, reflections, grade pass, doorway camera, living windows
   stars.js          Twenty-Four Stars: hidden star-sparks, the constellation, keyhole riddles
+  gift.js           Make it a gift: the gift form, and notes packed into the link's #hash
   kit.js            Shared 3D scenery, geometry, and effects
   friends.js        The cast of characters
   game.js           Midnight Delivery
@@ -130,7 +133,9 @@ docs/               README animation
 <details>
 <summary><strong>Workshop notes: checking changes</strong></summary>
 
-Run the local server, then visit [`/?selftest`](http://localhost:8123/?selftest). The built-in browser checks exercise all 24 scenes, validate the songs, run the concert programme, and report captured errors in a `SELFTEST` result on the page.
+Run `npm install` once, then `npm test`. Playwright starts the server and runs the built-in selftest, opens several doors, and checks a gift link from start to finish. GitHub Actions runs the same tests on every push and pull request. Set `PW_CHANNEL=chrome` to use your installed Chrome instead of Playwright's Chromium.
+
+To check by hand, run the local server, then visit [`/?selftest`](http://localhost:8123/?selftest). The built-in browser checks exercise all 24 scenes, validate the songs, run the concert programme, and report captured errors in a `SELFTEST` result on the page.
 
 For focused checks, these helpers are also available in the browser’s developer console after the app loads:
 
