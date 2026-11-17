@@ -45,11 +45,16 @@
   .pill { pointer-events: auto; padding: 9px 22px; border-radius: 999px; border: 1px solid rgba(255, 226, 160, .6); background: rgba(8, 14, 44, .6); color: var(--gold); font: 500 clamp(16px, 2.2vh, 20px) "Cormorant Garamond", serif; cursor: pointer; backdrop-filter: blur(6px); }
   .pill:hover, #g-quit:hover { background: rgba(255, 226, 160, .28); }
   .pill:focus-visible, #g-quit:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-  #play, #swing, #carol, #band, #village { margin: 10px 4px 0; animation: glow 3.2s ease-in-out infinite; } #village { animation-delay: -2s; }
+  #play-btn, #village { margin: 10px 4px 0; animation: glow 3.2s ease-in-out infinite; } #village { animation-delay: -1.6s; }
+  #play-wrap { position: relative; display: inline-block; }
+  #games { pointer-events: auto; position: absolute; top: calc(100% + 8px); left: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 22px; background: rgba(8, 14, 44, .82); border: 1px solid rgba(255, 226, 160, .35); backdrop-filter: blur(8px); box-shadow: 0 10px 30px rgba(0, 0, 20, .5); }
+  @media (max-width: 480px) { #play-btn, #village, #gift-btn { margin: 8px 1px 0; padding: 7px 12px; font-size: 15px; } }
+  #games[hidden] { display: none; } #games .pill { white-space: nowrap; text-align: left; }
+  #play-btn[aria-expanded="true"] { background: rgba(255, 226, 160, .28); animation: none; }
   #vbadge { display: inline-block; min-width: 1.4em; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: #c8102e; color: #fff; font-weight: 700; font-size: .85em; } #vbadge[hidden] { display: none; }
-  #villageline { margin-top: 4px; color: #cfe8ff; font-size: clamp(14px, 1.9vh, 17px); } #swing { animation-delay: -1.6s; } #carol { animation-delay: -0.8s; } #band { animation-delay: -2.4s; }
+  #villageline { margin-top: 4px; color: #cfe8ff; font-size: clamp(14px, 1.9vh, 17px); }
   @keyframes glow { 50% { box-shadow: 0 0 22px rgba(255, 200, 100, .55); } }
-  body.focus #play, body.focus #swing, body.focus #carol, body.focus #band, body.focus #village, body.focus #gift-btn { pointer-events: none; }
+  body.focus #play-btn, body.focus #games, body.focus #village, body.focus #gift-btn { pointer-events: none; }
   body.swing #g-magic, body.carol #g-magic, body.band #g-magic, body.vill #g-magic { display: none; }
   /* ---------- The Friends' Concert ---------- */
   body.band #g-score { font-size: clamp(26px, 4.4vh, 44px); } body.band #g-tune { white-space: normal; text-wrap: balance; }
@@ -118,7 +123,7 @@
   .gift-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .gift-row .pill { pointer-events: auto; }
   @media (prefers-reduced-motion: reduce) { body.day #note:not([hidden]) { animation: none; } }
-  @media (prefers-reduced-motion: reduce) { #play, #swing, #carol, #band, #village, #g-magic.low { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #play-btn, #village, #g-magic.low { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .ui, #fade, #veil { transition-duration: .01s; } }
 </style>
 <script type="importmap">
@@ -129,7 +134,7 @@
 <div id="stage"></div>
 <div id="fade"></div>
 <div id="mist"></div>
-<header class="ui"><h1 id="h1">The Advent House</h1><div id="status"></div><div><button id="play" class="pill">✦ Fly the sleigh</button><button id="swing" class="pill">✦ George swings</button><button id="carol" class="pill">✦ Carol of the doors</button><button id="band" class="pill">✦ The friends’ concert</button><button id="village" class="pill">🏘 My village <span id="vbadge" hidden></span></button><button id="gift-btn" class="pill">🎁 Make it a gift</button></div></header>
+<header class="ui"><h1 id="h1">The Advent House</h1><div id="status"></div><div><span id="play-wrap"><button id="play-btn" class="pill" aria-haspopup="true" aria-expanded="false" aria-controls="games">✦ Play</button><span id="games" hidden><button id="play" class="pill">🛷 Fly the sleigh</button><button id="swing" class="pill">🐒 George swings</button><button id="carol" class="pill">⭐ Carol of the doors</button><button id="band" class="pill">🎶 The friends’ concert</button></span></span><button id="village" class="pill">🏘 My village <span id="vbadge" hidden></span></button><button id="gift-btn" class="pill">🎁 Make it a gift</button></div></header>
 <button id="sound" class="ui" title="Sound on / off" aria-label="Toggle sound">♪</button>
 <div id="toast" class="ui" role="status"></div>
 <div id="cap" class="ui">
