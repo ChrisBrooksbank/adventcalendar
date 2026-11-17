@@ -191,7 +191,12 @@ function status() {
   }
 }
 $('sound').onclick = () => { audio.unlock(); $('sound').classList.toggle('off', !audio.toggle()); $('sound').blur(); };
-$('play').onclick = () => { $('play').blur(); startGame(); }; $('swing').onclick = () => { $('swing').blur(); startGame('swing'); }; $('carol').onclick = () => { $('carol').blur(); startGame('carol'); }; $('band').onclick = () => { $('band').blur(); startGame('band'); }; $('village').onclick = () => { $('village').blur(); startGame('village'); };
+const gameMenu = $('games'), playBtn = $('play-btn'), menu = (open) => { gameMenu.hidden = !open; playBtn.setAttribute('aria-expanded', open); };
+playBtn.onclick = (e) => { e.stopPropagation(); const open = gameMenu.hidden; menu(open); if (open) gameMenu.querySelector('button').focus({ preventScroll: true }); };
+addEventListener('pointerdown', (e) => { if (gameMenu.hidden || $('play-wrap').contains(e.target)) return; menu(false); if (e.target.tagName === 'CANVAS') { const eat = (c) => c.stopPropagation(); addEventListener('click', eat, { capture: true, once: true }); setTimeout(() => removeEventListener('click', eat, true), 700); } }, true); // a tap outside just closes the menu, without also opening a door
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gameMenu.hidden) { menu(false); playBtn.focus(); } });
+for (const [id, kind] of [['play'], ['swing', 'swing'], ['carol', 'carol'], ['band', 'band']]) $(id).onclick = () => { $(id).blur(); menu(false); startGame(kind); };
+$('village').onclick = () => { $('village').blur(); startGame('village'); };
 const maker = giftMaker({ preset: null }); $('gift-btn').onclick = () => { $('gift-btn').blur(); audio.unlock(); maker.open(); };
 if (giving) { if (giving.to) { $('h1').textContent = `An Advent House for ${giving.to}`; document.title = `An Advent House for ${giving.to}`; } $('gift-btn').firstChild.textContent = '🎁 Make your own gift'; }
 $('back').onclick = () => leaveDay(); addEventListener('keydown', (e) => { if (e.key === 'Escape') leaveDay(); });
