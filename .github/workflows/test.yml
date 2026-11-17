@@ -4,7 +4,7 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.56 supports this release; move up together with Playwright
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
