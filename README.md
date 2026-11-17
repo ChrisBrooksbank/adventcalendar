@@ -53,7 +53,7 @@ Except this calendar has a few extracurricular activities. Father Christmas need
 2. **Click or tap a numbered door.** During December, doors up to today’s date can open. Come back tomorrow for the next one.
 3. **Turn up the sound.** Interact with the page to allow browser audio; the **♪** button toggles sound.
 4. **Meet the neighbours.** Click the friends outside. George is particularly keen to demonstrate something inadvisable.
-5. **Try the buttons above the house.** The calendar is only the beginning.
+5. **Try the buttons above the house.** **✦ Play** opens a menu of the four games, **🏘 My village** shows the village you're building, and **🎁 Make it a gift** turns the calendar into a present. The calendar is only the beginning.
 
 Visiting outside December? The house and its activities are still worth a trip. For a tour with every calendar door available, use the [Christmas Eve preview](https://chrisbrooksbank.github.io/adventcalendar/?date=2026-12-24). Preview door progress is saved separately from ordinary calendar progress.
 
@@ -62,10 +62,12 @@ Visiting outside December? The house and its activities are still worth a trip. 
 | Activity | Mouse / touch | Keyboard |
 | --- | --- | --- |
 | Explore the house | Click or tap doors and friends | **Esc** leaves a door scene |
+| Choose a game | Tap **✦ Play**, then pick a game; tap anywhere else to close the menu | **Esc** closes the menu |
 | Fly the sleigh | Move the mouse or drag to steer; click, quick-tap, or tap with a second finger to drop a present | **Arrow keys / WASD** steer; **Space / Enter** drops |
 | George Swings | Hold to hook; release to fling | Hold **Space / Enter / ↑**, then release |
 | Carol of the Doors | Select a carol, then tap the lit doors; try **Free play** | Door rows, bottom to top: **ZXCVBN**, **ASDFGH**, **QWERTY**, **123456** |
 | The Friends’ Concert | Tap the players; choose **Another carol** | **Esc** returns home |
+| My Village | Tap a piece in the tray (or a building), then tap an empty square to build or move it; drag to look around; **⟲ ⟳** turn the view; **Turn piece** and **Put away** act on the selected piece | **← →** turn the view; **R** turns the selected piece; **Esc** returns home |
 
 Use the on-screen back buttons to return. In Carol of the Doors, **Esc** first returns to the song menu, then to the house.
 
@@ -100,6 +102,7 @@ Append these query strings to the live or local URL:
 | `?swing` | Start George Swings. |
 | `?carol` | Open Carol of the Doors. |
 | `?band` | Start The Friends’ Concert. |
+| `?village` | Open My Village. Add `&allvillage` to have all 24 buildings to place. |
 | `#gift=…` | Open a gift calendar (made with **🎁 Make it a gift**). Combine with `?date=2026-12-24&open=24` to read door 24's note straight away. |
 
 ## Behind the fairy lights
@@ -116,6 +119,7 @@ js/
   look.js           Quality tiers, shadows, reflections, grade pass, doorway camera, living windows
   stars.js          Twenty-Four Stars: hidden star-sparks, the constellation, keyhole riddles
   gift.js           Make it a gift: the gift form, and notes packed into the link's #hash
+  village.js        My Village: buildings, placement, neighbours, and villagers
   kit.js            Shared 3D scenery, geometry, and effects
   friends.js        The cast of characters
   game.js           Midnight Delivery
@@ -127,13 +131,16 @@ js/
   tunes.js          Melodies and tune names
 vendor/three/       Bundled Three.js, post-processing, Reflector and RoundedBoxGeometry modules
 sound-test.html     Sound audition page
+tests/              Playwright browser tests: selftest, door scenes, gift links, the Play menu
+playwright.config.js  Test settings (WebGL on SwiftShader, local server on port 8124)
+.github/workflows/  CI: runs the browser tests on every push and pull request
 docs/               README animation
 ```
 
 <details>
 <summary><strong>Workshop notes: checking changes</strong></summary>
 
-Run `npm install` once, then `npm test`. Playwright starts the server and runs the built-in selftest, opens several doors, and checks a gift link from start to finish. GitHub Actions runs the same tests on every push and pull request. Set `PW_CHANNEL=chrome` to use your installed Chrome instead of Playwright's Chromium.
+Run `npm install` once, then `npm test`. Playwright starts the server and runs the built-in selftest, opens several doors, checks a gift link from start to finish, and makes sure the **✦ Play** menu opens, closes and starts a game. GitHub Actions runs the same tests on every push and pull request. Set `PW_CHANNEL=chrome` to use your installed Chrome instead of Playwright's Chromium.
 
 To check by hand, run the local server, then visit [`/?selftest`](http://localhost:8123/?selftest). The built-in browser checks exercise all 24 scenes, validate the songs, run the concert programme, and report captured errors in a `SELFTEST` result on the page.
 
