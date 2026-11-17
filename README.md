@@ -9,7 +9,7 @@
 ![Three.js](https://img.shields.io/badge/Made_with-Three.js-23508f)
 ![Web Audio](https://img.shields.io/badge/Sound-Web_Audio-1d6b3f)
 
-![The Advent House in motion: a glowing calendar house beneath a winter sky, with falling snow and friends outside.](docs/advent-house.gif)
+![The Advent House in motion: a glowing calendar house beneath a winter sky, with falling snow and friends outside.](docs/advent-house-play-menu.gif)
 
 *A little December magic, built for your browser.*
 
